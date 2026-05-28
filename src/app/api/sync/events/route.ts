@@ -113,7 +113,7 @@ interface SyncRuntimeState {
 
 interface ProcessMarketResult {
   eventIdForStatusUpdate: string | null
-  eventIdForCacheInvalidation: string | null
+  eventIdsForCacheInvalidation: string[]
   changed: boolean
   listAffectingChange: boolean
   urlSetChanged: boolean
@@ -128,6 +128,7 @@ interface ProcessEventResult {
 
 interface ProcessMarketDataResult {
   eventIdForStatusUpdate: string
+  eventIdsForHiddenSync: string[]
   marketChanged: boolean
   urlSetChanged: boolean
 }
@@ -367,8 +368,10 @@ async function syncMarkets(allowedCreators: Set<string>, options: SyncOptions): 
         if (processResult.eventIdForStatusUpdate && processResult.changed) {
           eventIdsNeedingStatusUpdate.add(processResult.eventIdForStatusUpdate)
         }
-        if (processResult.eventIdForCacheInvalidation && processResult.changed) {
-          eventIdsNeedingCacheInvalidation.add(processResult.eventIdForCacheInvalidation)
+        if (processResult.changed) {
+          for (const eventId of processResult.eventIdsForCacheInvalidation) {
+            eventIdsNeedingCacheInvalidation.add(eventId)
+          }
         }
         if (processResult.listAffectingChange) {
           shouldInvalidateListCache = true
@@ -587,13 +590,31 @@ async function processMarket(
     runtimeState,
   )
   const marketResult = await processMarketData(market, metadata, eventResult.eventId, timestamps)
-  const changed = conditionChanged || eventResult.eventChanged || marketResult.marketChanged
+  const hiddenSyncResults = await Promise.all(
+    marketResult.eventIdsForHiddenSync.map(async eventId => ({
+      eventId,
+      changed: await syncEventHiddenFromArchivedMarkets(eventId),
+    })),
+  )
+  const hiddenChangedEventIds = hiddenSyncResults
+    .filter(result => result.changed)
+    .map(result => result.eventId)
+  const hiddenChanged = hiddenChangedEventIds.length > 0
+  const changed = conditionChanged || eventResult.eventChanged || marketResult.marketChanged || hiddenChanged
+  const eventIdsForCacheInvalidation = new Set<string>()
+
+  if (conditionChanged || eventResult.eventChanged || marketResult.marketChanged) {
+    eventIdsForCacheInvalidation.add(eventResult.eventId)
+  }
+  for (const eventId of hiddenChangedEventIds) {
+    eventIdsForCacheInvalidation.add(eventId)
+  }
 
   return {
     eventIdForStatusUpdate: changed ? marketResult.eventIdForStatusUpdate : null,
-    eventIdForCacheInvalidation: changed ? eventResult.eventId : null,
+    eventIdsForCacheInvalidation: changed ? Array.from(eventIdsForCacheInvalidation) : [],
     changed,
-    listAffectingChange: eventResult.listAffectingChange,
+    listAffectingChange: eventResult.listAffectingChange || hiddenChanged,
     urlSetChanged: eventResult.urlSetChanged || marketResult.urlSetChanged,
   }
 }
@@ -616,6 +637,35 @@ async function fetchMetadata(metadataHash: string) {
   }
 
   return metadata
+}
+
+async function syncEventHiddenFromArchivedMarkets(eventId: string): Promise<boolean> {
+  const [archivedMarketRows, eventRows] = await Promise.all([
+    db
+      .select({ condition_id: marketsTable.condition_id })
+      .from(marketsTable)
+      .where(and(eq(marketsTable.event_id, eventId), eq(marketsTable.archived, true)))
+      .limit(1),
+    db
+      .select({ is_hidden: eventsTable.is_hidden })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId))
+      .limit(1),
+  ])
+
+  const shouldHide = archivedMarketRows.length > 0
+  const currentHidden = Boolean(eventRows[0]?.is_hidden)
+
+  if (currentHidden === shouldHide) {
+    return false
+  }
+
+  await db
+    .update(eventsTable)
+    .set({ is_hidden: shouldHide, updated_at: new Date() })
+    .where(eq(eventsTable.id, eventId))
+
+  return true
 }
 
 async function processCondition(market: SubgraphCondition, timestamps: MarketTimestamps): Promise<boolean> {
@@ -1037,6 +1087,8 @@ async function processMarketData(
       condition_id: marketsTable.condition_id,
       event_id: marketsTable.event_id,
       is_resolved: marketsTable.is_resolved,
+      accepting_orders: marketsTable.accepting_orders,
+      archived: marketsTable.archived,
       updated_at: marketsTable.updated_at,
       slug: marketsTable.slug,
     })
@@ -1044,6 +1096,12 @@ async function processMarketData(
     .where(eq(marketsTable.condition_id, market.id))
     .limit(1)
   const existingMarket = existingMarketRows[0]
+  const acceptingOrdersFlag = resolveMetadataStatusFlag(
+    metadata,
+    ['acceptingOrders', 'accepting_orders'],
+    true,
+  )
+  const archivedFlag = resolveMetadataStatusFlag(metadata, ['archived'], false)
 
   const marketAlreadyExists = Boolean(existingMarket)
   const eventIdForStatusUpdate = existingMarket?.event_id ?? eventId
@@ -1056,6 +1114,21 @@ async function processMarketData(
     || incomingUpdatedAtMs > existingUpdatedAtMs
     || existingMarket.event_id !== eventId
     || existingMarket.is_resolved !== market.resolved
+    || existingMarket.accepting_orders !== acceptingOrdersFlag
+    || existingMarket.archived !== archivedFlag
+
+  const eventIdsForHiddenSync = new Set<string>()
+  if (existingMarket) {
+    const archivedStateChanged = existingMarket.archived !== archivedFlag
+    const eventChanged = existingMarket.event_id !== eventId
+    if (archivedStateChanged || (eventChanged && (existingMarket.archived || archivedFlag))) {
+      eventIdsForHiddenSync.add(existingMarket.event_id)
+      eventIdsForHiddenSync.add(eventId)
+    }
+  }
+  else if (archivedFlag) {
+    eventIdsForHiddenSync.add(eventId)
+  }
 
   if (marketAlreadyExists) {
     console.log(`Market ${market.id} already exists, updating cached data...`)
@@ -1064,6 +1137,7 @@ async function processMarketData(
   if (!marketNeedsUpdate) {
     return {
       eventIdForStatusUpdate,
+      eventIdsForHiddenSync: [],
       marketChanged: false,
       urlSetChanged: false,
     }
@@ -1119,7 +1193,6 @@ async function processMarketData(
   const sportsAssets = await normalizeSportsTeamAssets(normalizedSportsTeams)
   const sportsTeams = sportsAssets.teams
   const sportsTeamLogoUrls = sportsAssets.logo_urls
-
   const normalizedMarketEndTime = normalizeTimestamp(metadata.end_time)
 
   const conditionUpdate: Record<string, any> = {}
@@ -1152,7 +1225,9 @@ async function processMarketData(
     condition_id: market.id,
     event_id: eventId,
     is_resolved: market.resolved,
-    is_active: !market.resolved,
+    is_active: !market.resolved && !archivedFlag,
+    accepting_orders: acceptingOrdersFlag,
+    archived: archivedFlag,
     title: String(metadata.name),
     slug: String(metadata.slug),
     short_title: normalizeStringField(metadata.short_title),
@@ -1214,6 +1289,7 @@ async function processMarketData(
 
   return {
     eventIdForStatusUpdate,
+    eventIdsForHiddenSync: Array.from(eventIdsForHiddenSync),
     marketChanged: true,
     urlSetChanged,
   }
@@ -2079,6 +2155,34 @@ function normalizeOptionalBooleanField(value: unknown): boolean | null {
     return null
   }
   return null
+}
+
+function resolveMetadataStatusFlag(
+  metadata: any,
+  keys: string[],
+  defaultValue: boolean,
+): boolean {
+  const roots = [
+    metadata,
+    metadata?.sports?.market,
+    metadata?.event,
+    metadata?.sports?.event,
+  ]
+
+  for (const root of roots) {
+    if (!root || typeof root !== 'object') {
+      continue
+    }
+
+    for (const key of keys) {
+      const value = normalizeOptionalBooleanField((root as Record<string, unknown>)[key])
+      if (value !== null) {
+        return value
+      }
+    }
+  }
+
+  return defaultValue
 }
 
 function hashStringToHex(value: string) {
