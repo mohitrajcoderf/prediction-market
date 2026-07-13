@@ -164,6 +164,7 @@ export default function EventCard({
         group flex h-45 flex-col overflow-hidden rounded-xl shadow-md shadow-black/4 transition-all
         hover:-translate-y-0.5 hover:shadow-black/8
         dark:hover:bg-secondary
+        [&_img]:pointer-events-none [&_img]:select-none
       `)}
     >
       <CardContent

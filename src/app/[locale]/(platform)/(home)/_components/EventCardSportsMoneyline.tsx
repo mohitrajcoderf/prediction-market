@@ -293,6 +293,7 @@ export default function EventCardSportsMoneyline({
         transition-all
         hover:-translate-y-0.5 hover:shadow-black/8
         dark:hover:bg-secondary
+        [&_img]:pointer-events-none [&_img]:select-none
       `)}
     >
       <CardContent

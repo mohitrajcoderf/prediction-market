@@ -1628,7 +1628,7 @@ function FeaturedSlide({
   const hasContextItems = item.contextItems.length > 0
   const featuredDetailsClassName = cn(
     'flex min-h-0 min-w-0 flex-col gap-3',
-    !hasContextItems && item.kind !== 'sports' && 'justify-center',
+    !hasContextItems && item.kind !== 'sports' && shouldRenderLiveSeriesChart && 'justify-center',
   )
 
   const chartNode = (
@@ -1824,7 +1824,10 @@ export default function HomeFeaturedEventsCarousel({
   }
 
   return (
-    <section ref={sectionRef} className="hidden gap-3 md:grid">
+    <section
+      ref={sectionRef}
+      className="hidden gap-3 md:grid [&_img]:pointer-events-none [&_img]:select-none"
+    >
       <div className="grid gap-x-8 gap-y-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.4fr)]">
         <div
           className="h-[clamp(430px,38vw,480px)] overflow-hidden rounded-xl border bg-card shadow-md shadow-black/4"
