@@ -14,21 +14,29 @@ export function useSignaturePromptRunner() {
   const hidePrompt = useSignaturePrompt(state => state.hidePrompt)
 
   const runWithSignaturePrompt = useCallback(async <T>(
-    action: () => Promise<T>,
+    action: (dismissPrompt: () => void) => Promise<T>,
     options: SignaturePromptOptions = {},
   ): Promise<T> => {
     const { enabled = true, title, description } = options
     if (!enabled) {
-      return await action()
+      return await action(() => undefined)
     }
 
     showPrompt({ title, description })
+    let dismissed = false
+    function dismissPrompt() {
+      if (dismissed) {
+        return
+      }
+      dismissed = true
+      hidePrompt()
+    }
 
     try {
-      return await action()
+      return await action(dismissPrompt)
     }
     finally {
-      hidePrompt()
+      dismissPrompt()
     }
   }, [hidePrompt, showPrompt])
 

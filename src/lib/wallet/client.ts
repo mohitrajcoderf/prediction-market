@@ -77,11 +77,13 @@ export async function signAndSubmitDepositWalletCalls({
   calls,
   metadata,
   signTypedDataAsync,
+  onSigned,
 }: {
   user: Pick<User, 'address' | 'deposit_wallet_address'>
   calls: WalletCall[]
   metadata?: string
   signTypedDataAsync: SignTypedDataFn
+  onSigned?: () => void
 }): Promise<SignAndSubmitDepositWalletCallsResult> {
   if (!user.deposit_wallet_address) {
     return { error: DEFAULT_ERROR_MESSAGE, code: 'missing_deposit_wallet' }
@@ -112,6 +114,7 @@ export async function signAndSubmitDepositWalletCalls({
       primaryType: typedData.primaryType,
       message: typedData.message,
     })
+    onSigned?.()
 
     const payload = buildWalletTransactionRequestPayload({
       from: user.address,

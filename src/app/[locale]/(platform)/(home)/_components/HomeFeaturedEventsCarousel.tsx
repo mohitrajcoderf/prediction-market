@@ -473,7 +473,15 @@ function OutcomeRows({
   )
 }
 
-function StandardActions({ item, linkedHref }: { item: HomeFeaturedEventCard, linkedHref: string }) {
+function StandardActions({
+  item,
+  linkedHref,
+  stacked = false,
+}: {
+  item: HomeFeaturedEventCard
+  linkedHref: string
+  stacked?: boolean
+}) {
   const primaryMarket = item.primaryMarkets[0]
   const outcomes = item.topOutcomes
 
@@ -482,7 +490,7 @@ function StandardActions({ item, linkedHref }: { item: HomeFeaturedEventCard, li
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={cn('grid gap-2', stacked ? 'grid-cols-1' : 'grid-cols-2')}>
       {outcomes.slice(0, 2).map((outcome, index) => {
         const isNegative = isNegativeOutcomeLabel(outcome.label) || index === 1
 
@@ -1967,7 +1975,7 @@ function FeaturedSlide({
             <FeaturedHeader item={item} showActions={false} />
 
             {item.kind === 'standard'
-              ? <StandardActions item={item} linkedHref={linkedHref} />
+              ? <StandardActions item={item} linkedHref={linkedHref} stacked={!hasContextItems} />
               : <OutcomeRows item={item} linkedHref={linkedHref} />}
 
             <ContextTicker item={item} currentTimestamp={currentTimestamp} linkedHref={linkedHref} />

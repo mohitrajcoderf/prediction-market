@@ -185,11 +185,12 @@ export default function EventSplitSharesDialog({
             }),
       ]
 
-      const response = await runWithSignaturePrompt(() => signAndSubmitDepositWalletCalls({
+      const response = await runWithSignaturePrompt(dismissPrompt => signAndSubmitDepositWalletCalls({
         user,
         calls,
         metadata: 'split_position',
         signTypedDataAsync,
+        onSigned: dismissPrompt,
       }))
 
       if (response?.error) {

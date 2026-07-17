@@ -10,6 +10,8 @@ interface EventOrderPanelSubmitButtonProps {
   isDisabled: boolean
   onClick: (event: MouseEvent<HTMLButtonElement>) => void
   label?: string
+  loadingLabel?: string
+  className?: string
   type?: 'button' | 'submit'
   selectedAccent?: EventOrderPanelOutcomeSelectedAccent | null
   styleVariant?: 'default' | 'sports3d'
@@ -20,6 +22,8 @@ export default function EventOrderPanelSubmitButton({
   isDisabled,
   onClick,
   label,
+  loadingLabel,
+  className,
   type = 'submit',
   selectedAccent = null,
   styleVariant = 'default',
@@ -53,6 +57,7 @@ export default function EventOrderPanelSubmitButton({
           `,
           useSportsDepth ? 'hover:brightness-95' : 'hover:bg-primary',
           selectedAccent?.buttonClassName,
+          className,
         )}
         style={selectedAccent?.buttonStyle}
       >
@@ -66,7 +71,7 @@ export default function EventOrderPanelSubmitButton({
           ? (
               <div className="relative z-10 flex items-center justify-center gap-2">
                 <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                <span>{t('Processing...')}</span>
+                <span>{loadingLabel ?? t('Processing...')}</span>
               </div>
             )
           : (

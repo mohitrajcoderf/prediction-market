@@ -466,7 +466,7 @@ use kuest_client_sdk::ctf::types::SplitPositionRequest;
 use kuest_client_sdk::ctf::Client as CtfClient;
 use kuest_client_sdk::AMOY;
 
-const RPC_URL: &str = "https://rpc-amoy.polygon.technology";
+const RPC_URL: &str = "https://polygon-amoy.drpc.org";
 
 async fn split_inventory(condition_id: B256) -> Result<(), Box<dyn std::error::Error>> {
     let collateral_token = address!("41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582");
