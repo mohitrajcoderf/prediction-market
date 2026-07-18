@@ -793,13 +793,12 @@ function EventOrderPanelPolymarketArbitrage({
   }
 
   const connectButton = (
-    <Button
+    <EventOrderPanelSubmitButton
       type="button"
-      className="h-12 w-full bg-[#2E5CFF] text-white hover:bg-[#244bd4]"
-      disabled={walletStatus === 'connecting'}
+      isLoading={walletStatus === 'connecting'}
+      isDisabled={walletStatus === 'connecting'}
       onClick={() => void handleConnect()}
-    >
-      {t.rich('Connect <polymarket>Polymarket</polymarket> wallet', {
+      label={t.rich('Connect <polymarket>Polymarket</polymarket> wallet', {
         polymarket: () => (
           <Image
             src="/images/logos/polymarket-logo-black.svg"
@@ -810,7 +809,8 @@ function EventOrderPanelPolymarketArbitrage({
           />
         ),
       })}
-    </Button>
+      loadingLabel={t('Loading...')}
+    />
   )
   const submitButtonLabel = submissionStep === 1
     ? t('Sign {siteName} order · 1/2', { siteName: site.name })
@@ -848,9 +848,13 @@ function EventOrderPanelPolymarketArbitrage({
     : submitButton
   const actionButton = !siteWalletReady
     ? (
-        <Button type="button" className="h-12 w-full" onClick={onRequireSiteWallet}>
-          {t('Trade')}
-        </Button>
+        <EventOrderPanelSubmitButton
+          type="button"
+          isLoading={false}
+          isDisabled={false}
+          onClick={onRequireSiteWallet}
+          label={t('Trade')}
+        />
       )
     : !polymarketWalletReady
         ? multiWalletEnabled
@@ -859,11 +863,15 @@ function EventOrderPanelPolymarketArbitrage({
             ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="block" tabIndex={0}>
-                      <Button type="button" className="h-12 w-full" disabled>
-                        {t('Polymarket wallet unavailable')}
-                      </Button>
-                    </span>
+                    <div className="block" tabIndex={0}>
+                      <EventOrderPanelSubmitButton
+                        type="button"
+                        isLoading={false}
+                        isDisabled
+                        onClick={() => {}}
+                        label={t('Polymarket wallet unavailable')}
+                      />
+                    </div>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-72 text-center">
                     {t('When disabled, users can only trade arbitrage when they use the same wallet on both sites.')}
@@ -874,11 +882,15 @@ function EventOrderPanelPolymarketArbitrage({
               ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="block" tabIndex={0}>
-                        <Button type="button" className="h-12 w-full" disabled>
-                          {t('Polymarket wallet unavailable')}
-                        </Button>
-                      </span>
+                      <div className="block" tabIndex={0}>
+                        <EventOrderPanelSubmitButton
+                          type="button"
+                          isLoading={false}
+                          isDisabled
+                          onClick={() => {}}
+                          label={t('Polymarket wallet unavailable')}
+                        />
+                      </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-72 text-center">
                       {t('This wallet does not have an active Polymarket deposit wallet. Use the same wallet on Polymarket first.')}
@@ -886,14 +898,14 @@ function EventOrderPanelPolymarketArbitrage({
                   </Tooltip>
                 )
               : (
-                  <Button
+                  <EventOrderPanelSubmitButton
                     type="button"
-                    className="h-12 w-full bg-[#2E5CFF] text-white hover:bg-[#244bd4]"
-                    disabled={walletStatus === 'connecting'}
+                    isLoading={walletStatus === 'connecting'}
+                    isDisabled={walletStatus === 'connecting'}
                     onClick={() => void handleSameWalletConnect()}
-                  >
-                    {walletStatus === 'connecting' ? t('Loading...') : t('Connect your Polymarket wallet')}
-                  </Button>
+                    label={t('Connect your Polymarket wallet')}
+                    loadingLabel={t('Loading...')}
+                  />
                 )
         : submitButtonWithStatus
   const percentageTooltipLabel = siteWalletReady
@@ -1275,13 +1287,13 @@ function EventOrderPanelPolymarketArbitrage({
             </div>
           </div>
           <DialogFooter className="px-6 pb-6">
-            <Button
+            <EventOrderPanelSubmitButton
               type="button"
-              className="h-12 w-full bg-[#2E5CFF] text-white hover:bg-[#244bd4]"
+              isLoading={false}
+              isDisabled={false}
               onClick={dismissIntro}
-            >
-              {t('Continue')}
-            </Button>
+              label={t('Continue')}
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

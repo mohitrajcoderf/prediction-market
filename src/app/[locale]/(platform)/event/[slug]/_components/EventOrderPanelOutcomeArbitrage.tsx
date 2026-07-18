@@ -658,7 +658,15 @@ export default function EventOrderPanelOutcomeArbitrage({
       )}
 
       {!siteWalletReady
-        ? <Button type="button" className="h-12 w-full" onClick={onRequireSiteWallet}>{t('Trade')}</Button>
+        ? (
+            <EventOrderPanelSubmitButton
+              type="button"
+              isLoading={false}
+              isDisabled={false}
+              onClick={onRequireSiteWallet}
+              label={t('Trade')}
+            />
+          )
         : submitButtonWithStatus}
     </div>
   )

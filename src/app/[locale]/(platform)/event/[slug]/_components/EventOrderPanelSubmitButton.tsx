@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import type { EventOrderPanelOutcomeSelectedAccent }
   from '@/app/[locale]/(platform)/event/[slug]/_components/EventOrderPanelOutcomeButton'
 import { useExtracted } from 'next-intl'
@@ -9,8 +9,8 @@ interface EventOrderPanelSubmitButtonProps {
   isLoading: boolean
   isDisabled: boolean
   onClick: (event: MouseEvent<HTMLButtonElement>) => void
-  label?: string
-  loadingLabel?: string
+  label?: ReactNode
+  loadingLabel?: ReactNode
   className?: string
   type?: 'button' | 'submit'
   selectedAccent?: EventOrderPanelOutcomeSelectedAccent | null
@@ -30,9 +30,13 @@ export default function EventOrderPanelSubmitButton({
 }: EventOrderPanelSubmitButtonProps) {
   const t = useExtracted()
   const useSportsDepth = styleVariant === 'sports3d'
+  const isInactive = isDisabled && !isLoading
+  const loadingStyle = isLoading && !selectedAccent
+    ? { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
+    : undefined
 
   return (
-    <div className="relative w-full pb-1.25">
+    <div className={cn('relative w-full pb-1.25', isInactive && 'opacity-50')}>
       <div
         className={cn(
           'pointer-events-none absolute inset-x-0 bottom-0 h-4 rounded-b-md',
@@ -53,13 +57,14 @@ export default function EventOrderPanelSubmitButton({
             duration-150 ease-out
             hover:translate-y-px
             active:translate-y-0.5
-            disabled:opacity-100
+            disabled:translate-y-0 disabled:opacity-100 disabled:brightness-100
           `,
           useSportsDepth ? 'hover:brightness-95' : 'hover:bg-primary',
           selectedAccent?.buttonClassName,
           className,
+          isLoading && 'bg-primary text-primary-foreground hover:bg-primary',
         )}
-        style={selectedAccent?.buttonStyle}
+        style={loadingStyle ?? selectedAccent?.buttonStyle}
       >
         {selectedAccent?.overlayStyle && (
           <span
