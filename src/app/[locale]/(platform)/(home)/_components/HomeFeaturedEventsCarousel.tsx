@@ -1437,7 +1437,6 @@ function FeaturedRightRailSingle({
             loading="eager"
             sizes="(min-width: 1024px) 32vw, 280px"
             className="object-cover transition-transform duration-300 group-hover/side-card:scale-[1.02]"
-            unoptimized
           />
           {sideCard.ctaLabel.trim() && (
             <span className={cn(`
@@ -1631,7 +1630,6 @@ function FeaturedSideCardSlide({
               loading="eager"
               sizes="(min-width: 1024px) 32vw, 280px"
               className="object-cover transition-transform duration-300 group-hover/side-card:scale-[1.02]"
-              unoptimized
             />
             {slide.ctaLabel.trim() && (
               <span className={cn(`
