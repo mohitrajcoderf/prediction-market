@@ -1,6 +1,9 @@
 import type { CLOB_ORDER_TYPE } from '@/lib/constants'
 import type { BlockchainOrder, OrderSide, OrderType, Outcome } from '@/types'
-import { storeOrderAction } from '@/app/[locale]/(platform)/event/[slug]/_actions/store-order'
+import {
+  storeOrderAction,
+  storeOrdersAction,
+} from '@/app/[locale]/(platform)/event/[slug]/_actions/store-order'
 import { MICRO_UNIT, ORDER_SIDE, ORDER_TYPE } from '@/lib/constants'
 import { ZERO_ADDRESS, ZERO_BYTES32 } from '@/lib/contracts'
 import { toMicro } from '@/lib/formatters'
@@ -170,6 +173,25 @@ function serializeOrder(order: BlockchainOrder) {
   }
 }
 
+function toStoreOrderInput({
+  order,
+  signature,
+  orderType,
+  clobOrderType,
+  conditionId,
+  slug,
+}: SubmitOrderArgs) {
+  return {
+    ...serializeOrder(order),
+    side: order.side as OrderSide,
+    signature,
+    type: orderType,
+    clob_type: clobOrderType,
+    condition_id: conditionId,
+    slug,
+  }
+}
+
 export async function submitOrder({
   order,
   signature,
@@ -178,13 +200,16 @@ export async function submitOrder({
   conditionId,
   slug,
 }: SubmitOrderArgs) {
-  return storeOrderAction({
-    ...serializeOrder(order),
-    side: order.side as OrderSide,
+  return storeOrderAction(toStoreOrderInput({
+    order,
     signature,
-    type: orderType,
-    clob_type: clobOrderType,
-    condition_id: conditionId,
+    orderType,
+    clobOrderType,
+    conditionId,
     slug,
-  })
+  }))
+}
+
+export async function submitOrders(orders: SubmitOrderArgs[]) {
+  return storeOrdersAction(orders.map(toStoreOrderInput))
 }

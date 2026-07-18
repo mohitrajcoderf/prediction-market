@@ -1,138 +1,257 @@
 ---
 title: Arbitrage
-description: Learn how buying opposite outcomes below their combined $1 payout can lock in a potential profit
+description: Learn how Outcome and Polymarket arbitrage combine two opposite positions below their $1 resolution payout
 ---
 
 import { Accordions, Accordion } from 'fumadocs-ui/components/accordion'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
 import { Steps, Step } from 'fumadocs-ui/components/steps'
+import {
+  ArrowLeftRightIcon,
+  CircleDollarSignIcon,
+  Layers2Icon,
+  ScaleIcon,
+  ShieldCheckIcon,
+  WalletCardsIcon,
+} from 'lucide-react'
 import { SiteName } from '@/app/[locale]/docs/_components/SiteName'
 
-## What is arbitrage?
+## One idea, two strategies
 
-Arbitrage means buying opposite outcomes in the same market at prices that add up to less than their combined payout.
+Arbitrage buys the **same number of shares in two opposite outcomes**. The labels can be
+Yes/No, Up/Down, or two competing teams—the important part is that one outcome pays
+**$1.00** at resolution and the other pays **$0.00**.
 
-For a standard Yes/No market, one side will settle at <strong>$1.00</strong> and the other at <strong>$0.00</strong>. If you own the same number of Yes and No shares, each matched pair will therefore pay a total of <strong>$1.00</strong>, no matter which outcome wins.
-
-<Callout type="info" title="The basic idea">
-  If the executable price of Yes + the executable price of No + estimated fees is below $1.00, the difference may be an arbitrage opportunity.
+<Callout type="info" title="The rule">
+  **Yes cost + No cost + estimated fees must be below $1.00 per matched pair.**
 </Callout>
 
-On <SiteName />, arbitrage can combine one outcome from <SiteName /> with the opposite outcome from Polymarket. The arbitrage panel compares both possible combinations and shows the best currently available opportunity.
-
-## A simple example
-
-Imagine the same market has these executable prices across the two venues:
-
 <Cards>
-  <Card title="Buy No · $0.67">
-    You buy No shares on the venue offering them at 67¢.
+  <Card
+    icon={<Layers2Icon />}
+    title="Outcome"
+    description={<>Buy both opposite outcomes on the same market and pay for both legs from your <SiteName /> balance.</>}
+  >
+    Both orders are signed separately and sent together to the <SiteName /> CLOB.
   </Card>
-  <Card title="Buy Yes · $0.28">
-    You buy the same number of Yes shares on the other venue at 28¢.
-  </Card>
-  <Card title="Combined cost · $0.95">
-    One matched Yes + No pair costs 95¢ before fees.
-  </Card>
-  <Card title="Resolution payout · $1.00">
-    One side pays $1 and the other pays $0, for a combined $1 payout.
+
+  <Card
+    icon={<ArrowLeftRightIcon />}
+    title="Polymarket"
+    description={<>Buy one outcome on <SiteName /> and the opposite outcome on the matching Polymarket market.</>}
+  >
+    Each platform needs enough balance and executable liquidity for its leg.
   </Card>
 </Cards>
 
-The price difference is <strong>5¢ per matched pair</strong> before fees:
+## Compare the two strategies
+
+<Tabs items={['Outcome', 'Polymarket']}>
+  <Tab>
+    ### Outcome arbitrage
+
+    Both legs use the same <SiteName /> market, balance, and order book system.
+
+    <Cards>
+      <Card icon={<WalletCardsIcon />} title="One balance">
+        The total cost of both legs, including estimated fees, must fit your available
+        <SiteName /> USDC balance.
+      </Card>
+
+      <Card icon={<Layers2Icon />} title="Two opposite orders">
+        The panel buys equal quantities of both outcomes—for example, 100 Up shares and
+        100 Down shares.
+      </Card>
+    </Cards>
+
+    Use this strategy when both outcomes can be bought on <SiteName /> for less than their
+    combined $1 payout.
+  </Tab>
+
+  <Tab>
+    ### Polymarket arbitrage
+
+    One leg uses <SiteName /> and the other uses the mirrored Polymarket market.
+
+    <Cards>
+      <Card icon={<WalletCardsIcon />} title="Two platform balances">
+        The <SiteName /> leg and Polymarket leg are limited independently by the funds
+        available on each platform.
+      </Card>
+
+      <Card icon={<ArrowLeftRightIcon />} title="Opposite platforms">
+        If <SiteName /> buys No, Polymarket buys Yes—or the reverse—using the combination
+        with the best executable result.
+      </Card>
+    </Cards>
+
+    This tab appears only when Polymarket arbitrage is enabled and the market has a
+    compatible Polymarket mirror.
+  </Tab>
+</Tabs>
+
+## The two-leg calculation
+
+Suppose 100 matched pairs are available at these executable prices:
+
+<Cards>
+  <Card
+    icon={<CircleDollarSignIcon className="text-emerald-600 dark:text-emerald-400" />}
+    title={<span className="text-emerald-600 dark:text-emerald-400">Yes · 42¢</span>}
+  >
+    100 shares × $0.42 = **$42.00**
+  </Card>
+
+  <Card
+    icon={<CircleDollarSignIcon className="text-rose-600 dark:text-rose-400" />}
+    title={<span className="text-rose-600 dark:text-rose-400">No · 53¢</span>}
+  >
+    100 shares × $0.53 = **$53.00**
+  </Card>
+</Cards>
 
 <div className="not-prose my-6 overflow-hidden rounded-xl border bg-fd-card text-fd-card-foreground">
-  <div className="border-b bg-fd-muted/50 px-5 py-3 font-semibold">$2,500 example</div>
-  <div className="grid gap-3 p-5 text-sm sm:grid-cols-2">
-    <div className="flex items-center justify-between gap-4"><span className="text-fd-muted-foreground">Total invested</span><strong>$2,500.00</strong></div>
-    <div className="flex items-center justify-between gap-4"><span className="text-fd-muted-foreground">Cost per pair</span><strong>$0.95</strong></div>
-    <div className="flex items-center justify-between gap-4"><span className="text-fd-muted-foreground">Matched shares per side</span><strong>≈ 2,631.58</strong></div>
-    <div className="flex items-center justify-between gap-4"><span className="text-fd-muted-foreground">Cost of No at $0.67</span><strong>≈ $1,763.16</strong></div>
-    <div className="flex items-center justify-between gap-4"><span className="text-fd-muted-foreground">Cost of Yes at $0.28</span><strong>≈ $736.84</strong></div>
-    <div className="flex items-center justify-between gap-4"><span className="text-fd-muted-foreground">Payout at resolution</span><strong>≈ $2,631.58</strong></div>
-    <div className="flex items-center justify-between gap-4 sm:col-span-2 sm:border-t sm:pt-3"><span className="font-medium">Gross profit before fees</span><strong className="text-emerald-600 dark:text-emerald-400">≈ $131.58 (5.26%)</strong></div>
+  <div className="flex items-center gap-2 border-b bg-fd-muted/50 px-5 py-3 font-semibold">
+    <ScaleIcon className="size-4" />
+    100 matched pairs
+  </div>
+  <div className="grid gap-3 p-5 text-sm">
+    <div className="flex items-center justify-between gap-4">
+      <span className="font-medium text-emerald-600 dark:text-emerald-400">Yes</span>
+      <strong>$42.00</strong>
+    </div>
+    <div className="flex items-center justify-between gap-4">
+      <span className="font-medium text-rose-600 dark:text-rose-400">No</span>
+      <strong>$53.00</strong>
+    </div>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-fd-muted-foreground">Estimated fees</span>
+      <strong>$1.00</strong>
+    </div>
+    <div className="flex items-center justify-between gap-4 border-t pt-3">
+      <span>Total estimated cost</span>
+      <strong>$96.00</strong>
+    </div>
+    <div className="flex items-center justify-between gap-4">
+      <span>Resolution payout</span>
+      <strong>$100.00</strong>
+    </div>
+    <div className="flex items-center justify-between gap-4 border-t pt-3">
+      <span className="font-medium">Estimated profit</span>
+      <strong className="text-emerald-600 dark:text-emerald-400">$4.00 (4.17%)</strong>
+    </div>
   </div>
 </div>
 
-If <strong>Yes wins</strong>, the Yes shares pay approximately $2,631.58 and the No shares pay $0. If <strong>No wins</strong>, the No shares pay approximately $2,631.58 and the Yes shares pay $0. The combined payout is the same in either case.
+The formula is:
 
-<Callout type="warning" title="Always use the estimate shown in the order panel">
-  The example above ignores fees and assumes every share fills at the displayed price. Your real quote uses current executable prices, available liquidity, estimated fees, wallet balances, and the exact number of shares that can be matched.
+**Matched shares × ($1.00 − combined executable price − fees per matched pair) = estimated profit**
+
+For the example: **100 × ($1.00 − $0.95 − $0.01) = $4.00**. The displayed
+**$1.00 estimated fees** is the total for all 100 matched pairs.
+
+<Callout type="warning" title="The numbers above are illustrative">
+  Always use the live quote in the order panel. It calculates the available prices across
+  the order books, fees, balances, minimum order sizes, and the exact quantity that both
+  legs can match.
 </Callout>
 
-## How an arbitrage trade works
+## Why the payout is the same either way
+
+<Cards>
+  <Card icon={<ShieldCheckIcon />} title="If Outcome A wins">
+    100 Outcome A shares pay **$100**. Outcome B pays **$0**.
+  </Card>
+
+  <Card icon={<ShieldCheckIcon />} title="If Outcome B wins">
+    100 Outcome B shares pay **$100**. Outcome A pays **$0**.
+  </Card>
+
+  <Card icon={<CircleDollarSignIcon />} title="Either resolution">
+    The matched position pays **$100** in total. In the example, its estimated cost was
+    **$96**.
+  </Card>
+</Cards>
+
+This payout logic assumes both legs fill in equal quantities and remain held through
+resolution.
+
+## How to place an arbitrage trade
 
 <Steps>
   <Step>
-    ### Open the Arbitrage panel
+    ### Open Arbitrage
 
-    On an eligible market, switch the order panel from regular trading to <strong>Arbitrage</strong>. If there is no profitable executable combination, the panel will say that no trade is available right now.
+    Select **Arbitrage** in the order panel, then choose **Outcome** or **Polymarket**.
   </Step>
+
   <Step>
-    ### Connect and fund both sides
+    ### Review both legs
 
-    Make sure the wallets shown for <SiteName /> and Polymarket are connected and have enough funds. Part of your total amount is spent on each venue.
+    Confirm the outcome and executable price shown for each leg. Open the profit tooltip
+    to review costs, estimated fees, payout, and return.
   </Step>
+
   <Step>
-    ### Review the quote
+    ### Choose the matched amount
 
-    Check which outcome will be bought on each venue, the amount allocated to each side, estimated fees, matched shares, payout, and estimated profit.
+    Enter an amount or use Min, Mid, or Max. Max is limited by profitable liquidity and
+    the balance required by both legs.
   </Step>
-  <Step>
-    ### Choose an amount
 
-    Enter a total amount or use one of the available presets. The panel limits the trade to the amount that can be matched on both sides at profitable prices.
-  </Step>
   <Step>
     ### Sign both orders
 
-    You will be asked to sign the <SiteName /> order and the Polymarket order. Both orders must fill for the position to be fully matched.
+    Each leg requires an order signature. Outcome orders are submitted together to the
+    <SiteName /> CLOB; Polymarket arbitrage submits one order to each platform.
   </Step>
-  <Step>
-    ### Hold through resolution
 
-    After both sides fill, you own equal shares of opposite outcomes. At resolution, claim the winning position on the venue where it was purchased.
+  <Step>
+    ### Verify and hold
+
+    Check the completion message and your positions. After both legs fill, hold the equal
+    opposite shares through resolution and claim the winning position.
   </Step>
 </Steps>
 
-## What to check before signing
-
-- <strong>Combined cost:</strong> the two outcomes and estimated fees must remain below their combined $1 payout.
-- <strong>Matched shares:</strong> Yes and No quantities should be equal. The displayed payout is based on this matched amount.
-- <strong>Liquidity:</strong> large trades can consume multiple prices in the order books, reducing or removing the opportunity.
-- <strong>Balances:</strong> both venues need enough funds for their side of the trade.
-- <strong>Estimated profit:</strong> use the final preview, not only the headline prices you first noticed.
-
-<Callout type="warning" title="Two orders are involved">
-  Arbitrage is only locked in after both orders fill. Prices or liquidity can change while you review and sign. If one order succeeds and the other fails, you may temporarily hold only one outcome and have directional market exposure. Read the status message and check both venues before trying again.
+<Callout type="warning" title="Two legs do not mean guaranteed atomic execution">
+  Each order uses fill-or-kill execution, but the pair is not a single atomic blockchain
+  transaction. If one leg fills and the other fails, you may temporarily hold directional
+  exposure. Check the reported status and your positions before trying again.
 </Callout>
 
 ## Common questions
 
 <Accordions type="single" collapsible>
-  <Accordion title="Am I predicting whether Yes or No will win?" value="predicting-outcome">
-    No. A matched arbitrage position buys both opposite outcomes in equal quantities. The opportunity comes from their combined cost being below the combined payout, not from choosing the winning side.
+  <Accordion title="Do the outcomes need to be called Yes and No?" value="outcome-names">
+    No. Outcome arbitrage works with any two complementary outcomes, including Up/Down
+    and team names. The panel matches the two underlying outcome tokens.
   </Accordion>
 
-  <Accordion title="Is the displayed price enough to guarantee a profit?" value="displayed-price">
-    No. Profit depends on executable prices for your full amount, available liquidity, fees, and both orders filling. Use the estimate in the arbitrage panel immediately before signing.
+  <Accordion title="Do I need a Polymarket wallet?" value="polymarket-wallet">
+    Only for the Polymarket strategy. Outcome arbitrage uses your <SiteName /> trading
+    wallet and balance for both legs.
   </Accordion>
 
-  <Accordion title="Why is my maximum amount lower than my balance?" value="maximum-amount">
-    The maximum is limited by the smaller executable opportunity across the two venues. Extra balance does not help if there are not enough opposite shares available below the $1 threshold.
+  <Accordion title="Why is Max lower than my balance?" value="maximum-amount">
+    Max is limited by your available balance, profitable liquidity shared by both legs,
+    and the exact fill-or-kill order amounts after exchange quantization.
   </Accordion>
 
-  <Accordion title="Can I exit before the market resolves?" value="exit-early">
-    The locked payout logic assumes you keep both matched sides through resolution. Selling early creates new trades at current prices and can change or remove the expected profit.
+  <Accordion title="Can I sell before resolution?" value="exit-early">
+    Yes, but the displayed arbitrage profit assumes both matched legs are held through
+    resolution. Selling early creates new trades at current prices and changes the result.
   </Accordion>
 </Accordions>
 
 ## Related guides
 
 <Cards>
-  <Card href="./understanding-prices" title="Understanding Prices">
-    Review how outcome prices map to payouts and probabilities.
+  <Card href="./understanding-prices" icon={<ScaleIcon />} title="Understanding Prices">
+    See how share prices relate to probability and the $1 resolution payout.
   </Card>
-  <Card href="./buy-sell-shares" title="Buy & Sell Shares">
-    Learn the standard trading flow outside Arbitrage mode.
+
+  <Card href="./buy-sell-shares" icon={<WalletCardsIcon />} title="Buy & Sell Shares">
+    Learn the standard Market and Limit trading flow.
   </Card>
 </Cards>

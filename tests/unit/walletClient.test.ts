@@ -53,6 +53,36 @@ describe('wallet client', () => {
     expect(mocks.submitDepositWalletTransactionAction).not.toHaveBeenCalled()
   })
 
+  it('restores and dismisses the signature prompt for every nonce-mismatch retry', async () => {
+    mocks.getDepositWalletNonceAction
+      .mockResolvedValueOnce({ error: null, nonce: '1' })
+      .mockResolvedValueOnce({ error: null, nonce: '2' })
+    mocks.submitDepositWalletTransactionAction
+      .mockResolvedValueOnce({ error: 'Nonce changed.', code: 'wallet_nonce_mismatch' })
+      .mockResolvedValueOnce({ error: null, txHash: '0x2' })
+    const onSigning = vi.fn()
+    const onSigned = vi.fn()
+
+    const result = await signAndSubmitDepositWalletCalls({
+      user: {
+        address: '0x0000000000000000000000000000000000000001',
+        deposit_wallet_address: '0x0000000000000000000000000000000000000002',
+      },
+      calls: [{
+        target: '0x0000000000000000000000000000000000000003',
+        value: '0',
+        data: '0x',
+      }],
+      signTypedDataAsync: vi.fn().mockResolvedValue('0xsignature'),
+      onSigning,
+      onSigned,
+    })
+
+    expect(result).toEqual({ error: null, txHash: '0x2' })
+    expect(onSigning).toHaveBeenCalledTimes(2)
+    expect(onSigned).toHaveBeenCalledTimes(2)
+  })
+
   it('includes unprocessed items when a later limited chunk throws after a partial submit', async () => {
     mocks.getDepositWalletNonceAction.mockResolvedValue({
       error: null,

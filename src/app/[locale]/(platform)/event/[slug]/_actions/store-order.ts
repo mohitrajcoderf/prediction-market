@@ -42,8 +42,10 @@ const StoreOrderSchema = z.object({
   condition_id: z.string(),
   slug: z.string(),
 })
+const StoreOrdersSchema = z.array(StoreOrderSchema).min(1).max(15)
 
 type StoreOrderInput = z.infer<typeof StoreOrderSchema>
+type ClobOrderType = Exclude<StoreOrderInput['clob_type'], undefined>
 
 const CLOB_REQUEST_TIMEOUT_MS = 20_000
 
@@ -264,21 +266,19 @@ async function mapClobErrorMessage(rawError: string | null) {
   return t('Something went wrong while processing your order. Please try again.')
 }
 
-async function readClobResponsePayload(response: {
+async function readClobJsonResponsePayload(response: {
   text?: () => Promise<string>
   json?: () => Promise<unknown>
 }) {
   let responseText = ''
-  let payload: Record<string, unknown> | null = null
+  let payload: unknown = null
 
   if (typeof response.text === 'function') {
     responseText = await response.text()
     if (responseText) {
       try {
         const parsed = JSON.parse(responseText) as unknown
-        if (isRecord(parsed)) {
-          payload = parsed
-        }
+        payload = parsed
       }
       catch (error) {
         console.error('Failed to parse CLOB response payload.', error)
@@ -290,10 +290,8 @@ async function readClobResponsePayload(response: {
   if (typeof response.json === 'function') {
     try {
       const parsed = await response.json()
-      if (isRecord(parsed)) {
-        payload = parsed
-        responseText = JSON.stringify(parsed)
-      }
+      payload = parsed
+      responseText = JSON.stringify(parsed)
     }
     catch (error) {
       console.error('Failed to parse CLOB response payload.', error)
@@ -303,6 +301,14 @@ async function readClobResponsePayload(response: {
   return { responseText, payload }
 }
 
+async function readClobResponsePayload(response: {
+  text?: () => Promise<string>
+  json?: () => Promise<unknown>
+}) {
+  const { responseText, payload } = await readClobJsonResponsePayload(response)
+  return { responseText, payload: isRecord(payload) ? payload : null }
+}
+
 export async function storeOrderAction(payload: StoreOrderInput) {
   const user = await UserRepository.getCurrentUser({ disableCookieCache: true, minimal: true })
   if (!user) {
@@ -310,7 +316,8 @@ export async function storeOrderAction(payload: StoreOrderInput) {
   }
 
   const auth = await getUserTradingAuthSecrets(user.id)
-  if (!auth?.clob) {
+  const clobAuth = auth?.clob
+  if (!clobAuth) {
     return { error: TRADING_AUTH_REQUIRED_ERROR }
   }
   if (!user.deposit_wallet_address) {
@@ -366,7 +373,7 @@ export async function storeOrderAction(payload: StoreOrderInput) {
         signature: validated.data.signature,
       },
       orderType: clobOrderType,
-      owner: auth.clob.key,
+      owner: clobAuth.key,
     }
 
     const method = 'POST'
@@ -375,7 +382,7 @@ export async function storeOrderAction(payload: StoreOrderInput) {
     const body = JSON.stringify(clobPayload)
     const timestamp = Math.floor(Date.now() / 1000)
     const signature = buildClobHmacSignature(
-      auth.clob.secret,
+      clobAuth.secret,
       timestamp,
       method,
       path,
@@ -388,8 +395,8 @@ export async function storeOrderAction(payload: StoreOrderInput) {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'KUEST_ADDRESS': user.address,
-        'KUEST_API_KEY': auth.clob.key,
-        'KUEST_PASSPHRASE': auth.clob.passphrase,
+        'KUEST_API_KEY': clobAuth.key,
+        'KUEST_PASSPHRASE': clobAuth.passphrase,
         'KUEST_TIMESTAMP': timestamp.toString(),
         'KUEST_SIGNATURE': signature,
       },
@@ -453,5 +460,176 @@ export async function storeOrderAction(payload: StoreOrderInput) {
   catch (error) {
     console.error('Failed to create order.', error)
     return { error: await mapClobErrorMessage(null) }
+  }
+}
+
+export async function storeOrdersAction(payloads: StoreOrderInput[]) {
+  const user = await UserRepository.getCurrentUser({ disableCookieCache: true, minimal: true })
+  if (!user) {
+    return { error: UNAUTHENTICATED_ERROR, results: null }
+  }
+
+  const auth = await getUserTradingAuthSecrets(user.id)
+  const clobAuth = auth?.clob
+  if (!clobAuth) {
+    return { error: TRADING_AUTH_REQUIRED_ERROR, results: null }
+  }
+  if (!user.deposit_wallet_address) {
+    return { error: TRADING_DEPOSIT_WALLET_REQUIRED_ERROR, results: null }
+  }
+
+  const validated = StoreOrdersSchema.safeParse(payloads)
+  if (!validated.success) {
+    return { error: await mapClobErrorMessage(null), results: null }
+  }
+
+  const expectedMaker = normalizeAddress(user.deposit_wallet_address)
+  if (!expectedMaker) {
+    return { error: await mapClobErrorMessage(null), results: null }
+  }
+
+  const defaultMarketOrderType = user.settings?.trading?.market_order_type ?? CLOB_ORDER_TYPE.FAK
+  const preparedOrders: Array<{ data: StoreOrderInput, clobOrderType: ClobOrderType }> = []
+
+  for (const data of validated.data) {
+    const maker = normalizeAddress(data.maker)
+    const signer = normalizeAddress(data.signer)
+    if (!maker || !signer) {
+      return { error: await mapClobErrorMessage(null), results: null }
+    }
+    if (data.signature_type !== 3) {
+      return { error: await mapClobErrorMessage(null), results: null }
+    }
+    if (maker.toLowerCase() !== expectedMaker.toLowerCase() || signer.toLowerCase() !== expectedMaker.toLowerCase()) {
+      return { error: await mapClobErrorMessage(null), results: null }
+    }
+
+    const clobOrderType = data.clob_type
+      ?? (data.type === ORDER_TYPE.MARKET ? defaultMarketOrderType : CLOB_ORDER_TYPE.GTC)
+    preparedOrders.push({
+      data,
+      clobOrderType,
+    })
+  }
+
+  try {
+    const method = 'POST'
+    const path = '/orders'
+    const { clobUrl } = resolvePublicRuntimeEnv(process.env)
+    const body = JSON.stringify(preparedOrders.map(({ data, clobOrderType }) => ({
+      order: {
+        salt: data.salt,
+        maker: data.maker,
+        signer: data.signer,
+        conditionId: data.condition_id,
+        tokenId: data.token_id,
+        makerAmount: data.maker_amount,
+        takerAmount: data.taker_amount,
+        expiration: data.expiration,
+        side: data.side === 0 ? 'BUY' : 'SELL',
+        signatureType: data.signature_type,
+        timestamp: data.timestamp,
+        metadata: data.metadata,
+        builder: data.builder,
+        signature: data.signature,
+      },
+      orderType: clobOrderType,
+      owner: clobAuth.key,
+    })))
+    const timestamp = Math.floor(Date.now() / 1000)
+    const signature = buildClobHmacSignature(
+      clobAuth.secret,
+      timestamp,
+      method,
+      path,
+      body,
+    )
+
+    const response = await fetch(`${clobUrl}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'KUEST_ADDRESS': user.address,
+        'KUEST_API_KEY': clobAuth.key,
+        'KUEST_PASSPHRASE': clobAuth.passphrase,
+        'KUEST_TIMESTAMP': timestamp.toString(),
+        'KUEST_SIGNATURE': signature,
+      },
+      body,
+      signal: AbortSignal.timeout(CLOB_REQUEST_TIMEOUT_MS),
+    })
+
+    const { responseText, payload } = await readClobJsonResponsePayload(response)
+    if (!response.ok) {
+      const responsePayload = isRecord(payload) ? payload : null
+      const responseError = getStringField(responsePayload, 'error')
+        ?? getStringField(responsePayload, 'errorMsg')
+        ?? getStringField(responsePayload, 'message')
+      const humanMessage = await mapClobErrorMessage(responseError)
+      console.error(
+        'Failed to send order batch to CLOB.',
+        `Status ${response.status} (${response.statusText})`,
+        responseError ?? responseText,
+      )
+      return { error: humanMessage, results: null }
+    }
+
+    if (!Array.isArray(payload) || payload.length !== preparedOrders.length) {
+      console.error('CLOB batch response did not match the submitted order count.', payload)
+      return { error: await mapClobErrorMessage(null), results: null }
+    }
+
+    const successfulSlugs = new Set<string>()
+    const successfulConditionIds = new Set<string>()
+    const results = await Promise.all(payload.map(async (rawResult, index) => {
+      if (!isRecord(rawResult)) {
+        return { error: await mapClobErrorMessage(null), orderId: null }
+      }
+      if (rawResult.success === false) {
+        const responseError = getStringField(rawResult, 'errorMsg')
+          ?? getStringField(rawResult, 'error')
+          ?? getStringField(rawResult, 'message')
+        return { error: await mapClobErrorMessage(responseError), orderId: null }
+      }
+
+      const orderId = getStringField(rawResult, 'orderID') ?? getStringField(rawResult, 'orderId')
+      if (!orderId) {
+        return { error: await mapClobErrorMessage(null), orderId: null }
+      }
+
+      const prepared = preparedOrders[index]
+      try {
+        await OrderRepository.createOrder({
+          ...prepared.data,
+          salt: BigInt(prepared.data.salt),
+          maker_amount: BigInt(prepared.data.maker_amount),
+          taker_amount: BigInt(prepared.data.taker_amount),
+          nonce: BigInt(prepared.data.nonce),
+          fee_rate_bps: Number(prepared.data.fee_rate_bps),
+          expiration: BigInt(prepared.data.expiration),
+          user_id: user.id,
+          affiliate_user_id: user.referred_by_user_id,
+          type: prepared.clobOrderType,
+          clob_order_id: orderId,
+        })
+      }
+      catch (error) {
+        console.error('CLOB accepted a batch order, but local persistence failed.', error)
+      }
+
+      successfulSlugs.add(prepared.data.slug)
+      successfulConditionIds.add(prepared.data.condition_id)
+      return { error: null, orderId }
+    }))
+
+    successfulSlugs.forEach(slug => updateTag(cacheTags.activity(slug)))
+    successfulConditionIds.forEach(conditionId => updateTag(cacheTags.holders(conditionId)))
+
+    return { error: null, results }
+  }
+  catch (error) {
+    console.error('Failed to create order batch.', error)
+    return { error: await mapClobErrorMessage(null), results: null }
   }
 }

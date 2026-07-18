@@ -1,8 +1,12 @@
-import type { storeOrderAction } from '@/app/[locale]/(platform)/event/[slug]/_actions/store-order'
+import type {
+  storeOrderAction,
+  storeOrdersAction,
+} from '@/app/[locale]/(platform)/event/[slug]/_actions/store-order'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TRADING_AUTH_REQUIRED_ERROR } from '@/lib/trading-auth/errors'
 
 type StoreOrderInput = Parameters<typeof storeOrderAction>[0]
+type StoreOrdersInput = Parameters<typeof storeOrdersAction>[0]
 
 const mocks = vi.hoisted(() => ({
   updateTag: vi.fn(),
@@ -269,6 +273,98 @@ describe('storeOrderAction', () => {
       condition_id: 'cond-1',
       slug: 'event-1',
     }))
+  })
+
+  it('submits signed orders through the existing CLOB batch endpoint', async () => {
+    process.env.CLOB_URL = 'https://clob.local'
+    const depositWallet = address('01')
+    mocks.getCurrentUser.mockResolvedValueOnce({
+      id: 'user-1',
+      address: address('aa'),
+      deposit_wallet_address: depositWallet,
+      referred_by_user_id: null,
+      settings: { trading: { market_order_type: 'FAK' } },
+    })
+    mocks.getUserTradingAuthSecrets.mockResolvedValueOnce({
+      clob: { key: 'k', passphrase: 'p', secret: 's' },
+    })
+
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      status: 200,
+      statusText: 'OK',
+      ok: true,
+      json: async () => ([
+        { success: true, errorMsg: '', orderID: 'yes-123', status: 'matched' },
+        { success: true, errorMsg: '', orderID: 'no-456', status: 'matched' },
+      ]),
+    })
+    globalThis.fetch = fetchMock as any
+
+    const { storeOrdersAction } = await import('@/app/[locale]/(platform)/event/[slug]/_actions/store-order')
+    const payloads: StoreOrdersInput = [
+      basePayload({ maker: depositWallet, signer: depositWallet, token_id: '1' }),
+      basePayload({ maker: depositWallet, signer: depositWallet, token_id: '2', salt: '2' }),
+    ]
+    const result = await storeOrdersAction(payloads)
+
+    expect(result).toEqual({
+      error: null,
+      results: [
+        { error: null, orderId: 'yes-123' },
+        { error: null, orderId: 'no-456' },
+      ],
+    })
+    expect(fetchMock).toHaveBeenCalledWith('https://clob.local/orders', expect.objectContaining({
+      method: 'POST',
+    }))
+    expect(mocks.buildClobHmacSignature).toHaveBeenCalledWith(
+      's',
+      expect.any(Number),
+      'POST',
+      '/orders',
+      expect.any(String),
+    )
+    expect(mocks.updateTag).toHaveBeenCalledTimes(2)
+    expect(mocks.createOrder).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves individual failures returned by the CLOB batch endpoint', async () => {
+    process.env.CLOB_URL = 'https://clob.local'
+    const depositWallet = address('01')
+    mocks.getCurrentUser.mockResolvedValueOnce({
+      id: 'user-1',
+      address: address('aa'),
+      deposit_wallet_address: depositWallet,
+      referred_by_user_id: null,
+      settings: { trading: { market_order_type: 'FAK' } },
+    })
+    mocks.getUserTradingAuthSecrets.mockResolvedValueOnce({
+      clob: { key: 'k', passphrase: 'p', secret: 's' },
+    })
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      status: 200,
+      statusText: 'OK',
+      ok: true,
+      json: async () => ([
+        { success: true, errorMsg: '', orderID: 'yes-123', status: 'matched' },
+        { success: false, errorMsg: 'order couldn\'t be fully filled, FOK orders are fully filled/killed', orderID: '', status: 'unmatched' },
+      ]),
+    }) as any
+
+    const { storeOrdersAction } = await import('@/app/[locale]/(platform)/event/[slug]/_actions/store-order')
+    const result = await storeOrdersAction([
+      basePayload({ maker: depositWallet, signer: depositWallet, token_id: '1' }),
+      basePayload({ maker: depositWallet, signer: depositWallet, token_id: '2', salt: '2' }),
+    ])
+
+    expect(result).toEqual({
+      error: null,
+      results: [
+        { error: null, orderId: 'yes-123' },
+        { error: 'Not enough liquidity to fully fill this order right now.', orderId: null },
+      ],
+    })
   })
 
   it('returns default message for unmapped CLOB errors', async () => {

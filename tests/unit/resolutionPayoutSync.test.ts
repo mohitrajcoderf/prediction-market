@@ -18,7 +18,7 @@ vi.mock('viem', () => ({
 
 vi.mock('@/lib/viem-network', () => ({
   defaultViemNetwork: { id: 80002, name: 'amoy' },
-  resolveRuntimeViemRpcUrl: () => 'https://rpc-amoy.polygon.technology',
+  resolveRuntimeViemRpcUrl: () => 'https://polygon-amoy.drpc.org',
 }))
 
 vi.mock('@/lib/drizzle', () => ({

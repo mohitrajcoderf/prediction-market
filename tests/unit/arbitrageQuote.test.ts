@@ -1,6 +1,7 @@
 import type { NormalizedBookLevel } from '@/lib/order-panel-utils'
 import { describe, expect, it } from 'vitest'
 import {
+  calculatePolymarketUnitCost,
   constrainArbitrageQuoteForPolymarketFok,
   findMinimumExecutableArbitrageQuote,
   scaleArbitrageQuote,
@@ -12,6 +13,10 @@ function level(priceDollars: number, size: number): NormalizedBookLevel {
 }
 
 describe('arbitrage quotes', () => {
+  it('includes the Polymarket taker fee charged to a marketable FOK limit order', () => {
+    expect(calculatePolymarketUnitCost(0.5, 0.07, 1)).toBeCloseTo(0.5175, 8)
+  })
+
   it('pairs complementary outcomes and limits size by the smaller venue balance', () => {
     const quote = selectBestArbitrageQuote([{
       kuestOutcome: 'YES',

@@ -143,6 +143,8 @@ export function calculatePolymarketUnitCost(
   feeRate = 0,
   feeExponent = 0,
 ) {
+  // Arbitrage submits a marketable FOK limit order. It is therefore the
+  // taker, and Polymarket applies this market fee curve when the order matches.
   return price + Math.max(0, feeRate) * (
     price * (1 - price)
   ) ** Math.max(0, feeExponent)
