@@ -9,10 +9,6 @@ const config: KnipConfig = {
     'src/lib/db/schema/**',
     'src/components/ui/**',
   ],
-  treatConfigHintsAsErrors: false,
-  rules: {
-    unlisted: 'off',
-  },
 }
 
 export default config
