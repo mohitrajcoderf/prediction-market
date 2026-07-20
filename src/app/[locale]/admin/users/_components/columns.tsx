@@ -1,7 +1,8 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDownIcon, MailIcon } from 'lucide-react'
+import type { SumsubStatus } from '@/lib/sumsub/types'
+import { ArrowUpDownIcon, MailIcon, ScanFaceIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import ProfileLink from '@/components/ProfileLink'
 import { Badge } from '@/components/ui/badge'
@@ -24,12 +25,13 @@ interface AdminUserRow {
   profileUrl: string
   created_at: string
   search_text: string
+  sumsub_status: SumsubStatus
 }
 
-export function useAdminUsersColumns(): ColumnDef<AdminUserRow>[] {
+export function useAdminUsersColumns(sumsubActive = false): ColumnDef<AdminUserRow>[] {
   const t = useExtracted()
 
-  return [
+  const columns: ColumnDef<AdminUserRow>[] = [
     {
       id: 'select',
       header: ({ table }) => (
@@ -52,6 +54,41 @@ export function useAdminUsersColumns(): ColumnDef<AdminUserRow>[] {
       enableSorting: false,
       enableHiding: false,
     },
+    ...(sumsubActive
+      ? [{
+        accessorKey: 'sumsub_status',
+        id: 'kyc',
+        header: () => <span className="text-xs font-medium text-muted-foreground uppercase">{t('KYC')}</span>,
+        enableSorting: false,
+        cell: ({ row }: { row: { original: AdminUserRow } }) => {
+          const status = row.original.sumsub_status
+          const label = status === 'approved'
+            ? t('KYC approved')
+            : status === 'rejected'
+              ? t('KYC rejected')
+              : status === 'pending'
+                ? t('Verification is under review')
+                : status === 'on_hold'
+                  ? t('Verification is on hold')
+                  : status === 'error'
+                    ? t('Verification status is temporarily unavailable')
+                    : t('Identity verification required')
+          return (
+            <span title={label} className="inline-flex">
+              <ScanFaceIcon
+                className={cn('size-5', status === 'approved'
+                  ? 'text-primary'
+                  : status === 'rejected'
+                    ? `text-destructive`
+                    : `text-muted-foreground`)}
+                aria-hidden="true"
+              />
+              <span className="sr-only">{label}</span>
+            </span>
+          )
+        },
+      } satisfies ColumnDef<AdminUserRow>]
+      : []),
     {
       accessorKey: 'username',
       id: 'user',
@@ -193,4 +230,5 @@ export function useAdminUsersColumns(): ColumnDef<AdminUserRow>[] {
       },
     },
   ]
+  return columns
 }

@@ -5,6 +5,13 @@ import type {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TRADING_AUTH_REQUIRED_ERROR } from '@/lib/trading-auth/errors'
 
+const sumsubMocks = vi.hoisted(() => ({ requireApproval: vi.fn() }))
+
+vi.mock('@/lib/sumsub/enforcement', () => ({
+  requireSumsubTradingApproval: sumsubMocks.requireApproval,
+  SUMSUB_APPROVAL_REQUIRED_MESSAGE: 'Complete identity verification to continue.',
+}))
+
 type StoreOrderInput = Parameters<typeof storeOrderAction>[0]
 type StoreOrdersInput = Parameters<typeof storeOrdersAction>[0]
 
@@ -66,6 +73,7 @@ describe('storeOrderAction', () => {
     mocks.getExtracted.mockResolvedValue((message: string) => message)
     mocks.getCurrentUser.mockReset()
     mocks.createOrder.mockReset()
+    sumsubMocks.requireApproval.mockReset().mockResolvedValue({ allowed: true })
   })
 
   function address(lastByte: string) {
@@ -105,6 +113,22 @@ describe('storeOrderAction', () => {
     const result = await storeOrderAction(basePayload())
     expect(result).toEqual({ error: 'Unauthenticated.' })
     expect(mocks.getCurrentUser).toHaveBeenCalledWith({ disableCookieCache: true, minimal: true })
+  })
+
+  it('blocks order storage before reading credentials or calling the CLOB', async () => {
+    process.env.CLOB_URL = 'https://clob.local'
+    mocks.getCurrentUser.mockResolvedValueOnce({ id: 'user-1' })
+    sumsubMocks.requireApproval.mockResolvedValueOnce({ allowed: false })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    fetchSpy.mockClear()
+
+    const { storeOrderAction } = await import('@/app/[locale]/(platform)/event/[slug]/_actions/store-order')
+    await expect(storeOrderAction(basePayload())).resolves.toEqual({
+      error: 'Complete identity verification to continue.',
+    })
+    expect(mocks.getUserTradingAuthSecrets).not.toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(mocks.createOrder).not.toHaveBeenCalled()
   })
 
   it('requires trading auth and Deposit Wallet', async () => {
@@ -326,6 +350,21 @@ describe('storeOrderAction', () => {
     )
     expect(mocks.updateTag).toHaveBeenCalledTimes(2)
     expect(mocks.createOrder).toHaveBeenCalledTimes(2)
+  })
+
+  it('blocks batch order storage when Sumsub approval is required', async () => {
+    process.env.CLOB_URL = 'https://clob.local'
+    mocks.getCurrentUser.mockResolvedValueOnce({ id: 'user-1' })
+    sumsubMocks.requireApproval.mockResolvedValueOnce({ allowed: false })
+    const { storeOrdersAction } = await import('@/app/[locale]/(platform)/event/[slug]/_actions/store-order')
+    await expect(storeOrdersAction([
+      basePayload(),
+    ])).resolves.toEqual({
+      error: 'Complete identity verification to continue.',
+      results: null,
+    })
+    expect(mocks.getUserTradingAuthSecrets).not.toHaveBeenCalled()
+    expect(mocks.createOrder).not.toHaveBeenCalled()
   })
 
   it('preserves individual failures returned by the CLOB batch endpoint', async () => {

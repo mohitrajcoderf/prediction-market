@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   replaceFeaturedEventsWithSettings: vi.fn(),
   updateSettings: vi.fn(),
+  decryptSecret: vi.fn(),
   encryptSecret: vi.fn(),
   upload: vi.fn(),
   fetch: vi.fn(),
@@ -77,6 +78,7 @@ vi.mock('@/lib/db/queries/home-featured-events', () => ({
 }))
 
 vi.mock('@/lib/encryption', () => ({
+  decryptSecret: (...args: any[]) => mocks.decryptSecret(...args),
   encryptSecret: (...args: any[]) => mocks.encryptSecret(...args),
 }))
 
@@ -94,6 +96,7 @@ describe('updateGeneralSettingsAction', () => {
     mocks.getSettings.mockReset()
     mocks.replaceFeaturedEventsWithSettings.mockReset()
     mocks.updateSettings.mockReset()
+    mocks.decryptSecret.mockReset()
     mocks.encryptSecret.mockReset()
     mocks.upload.mockReset()
     mocks.fetch.mockReset()
@@ -101,6 +104,7 @@ describe('updateGeneralSettingsAction', () => {
     mocks.getSettings.mockResolvedValue({ data: {}, error: null })
     mocks.replaceFeaturedEventsWithSettings.mockResolvedValue({ data: [], error: null })
     mocks.encryptSecret.mockImplementation((value: string) => `enc.v1.${value}`)
+    mocks.decryptSecret.mockReturnValue('')
     mocks.fetch.mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({}),
@@ -120,6 +124,33 @@ describe('updateGeneralSettingsAction', () => {
 
     const result = await updateGeneralSettingsAction({ error: null }, formData)
     expect(result).toEqual({ error: 'Unauthenticated.' })
+  })
+
+  it('does not preserve Sumsub secrets that can no longer be decrypted', async () => {
+    mocks.getCurrentUser.mockResolvedValueOnce({ id: 'admin-1', is_admin: true })
+    mocks.getSettings.mockResolvedValueOnce({
+      data: {
+        integrations: {
+          sumsub_app_token: { value: 'enc.v1.invalid-app-token' },
+          sumsub_secret_key: { value: 'enc.v1.invalid-secret-key' },
+          sumsub_webhook_secret: { value: 'enc.v1.invalid-webhook-secret' },
+        },
+      },
+      error: null,
+    })
+    const formData = buildHomeFeaturedFormData()
+    formData.set('sumsub_enabled', 'true')
+    formData.set('sumsub_enforcement', 'required')
+    formData.set('sumsub_level_name', 'enhanced-kyc')
+    formData.set('sumsub_app_token', '')
+    formData.set('sumsub_secret_key', '')
+    formData.set('sumsub_webhook_secret', '')
+
+    const { updateGeneralSettingsAction } = await import('@/app/[locale]/admin/(general)/_actions/update-general-settings')
+    const result = await updateGeneralSettingsAction({ error: null }, formData)
+
+    expect(result).toEqual({ error: 'Complete all Sumsub credentials before enabling this enforcement mode.' })
+    expect(mocks.updateSettings).not.toHaveBeenCalled()
   })
 
   it('returns validation errors for invalid payloads', async () => {
@@ -241,7 +272,7 @@ describe('updateGeneralSettingsAction', () => {
     expect(mocks.encryptSecret).toHaveBeenCalledWith('openrouter-123')
 
     const savedPayload = mocks.updateSettings.mock.calls[0][0] as Array<{ group: string, key: string, value: string }>
-    expect(savedPayload).toHaveLength(33)
+    expect(savedPayload).toHaveLength(30)
     expect(savedPayload.find(entry => entry.key === 'site_name')?.value).toBe('Kuest')
     expect(savedPayload.find(entry => entry.key === 'site_description')?.value).toBe('Prediction market')
     expect(savedPayload.find(entry => entry.key === 'site_logo_mode')?.value).toBe('svg')
@@ -262,7 +293,7 @@ describe('updateGeneralSettingsAction', () => {
     expect(savedPayload.find(entry => entry.key === 'global_announcement_link_url')?.value).toBe('')
     expect(savedPayload.find(entry => entry.key === 'global_announcement_disabled_on')?.value).toBe('[]')
     expect(savedPayload.find(entry => entry.key === 'global_announcement_disable_faucet_banner')?.value).toBe('false')
-    expect(savedPayload.find(entry => entry.key === 'site_custom_javascript_codes')?.value).toBe('')
+    expect(savedPayload.find(entry => entry.key === 'site_custom_javascript_codes')).toBeUndefined()
     expect(savedPayload.some(entry => entry.key === 'fee_recipient_wallet')).toBe(false)
     expect(savedPayload.find(entry => entry.key === 'tos_pdf_path')?.value).toBe('')
     expect(savedPayload.find(entry => entry.key === 'lifi_integrator')?.value).toBe('kuest-fork')
@@ -277,8 +308,8 @@ describe('updateGeneralSettingsAction', () => {
       value: 'true',
     })
     expect(savedPayload.find(entry => entry.key === 'lifi_api_key')?.value).toBe('enc.v1.lifi-123')
-    expect(savedPayload.find(entry => entry.key === 'sports_pandascore_token')?.value).toBe('')
-    expect(savedPayload.find(entry => entry.key === 'sports_thesportsdb_api_key')?.value).toBe('')
+    expect(savedPayload.find(entry => entry.key === 'sports_pandascore_token')).toBeUndefined()
+    expect(savedPayload.find(entry => entry.key === 'sports_thesportsdb_api_key')).toBeUndefined()
     expect(savedPayload.find(entry => entry.group === 'ai' && entry.key === 'openrouter_model')?.value).toBe('openai/gpt-4o-mini')
     expect(savedPayload.find(entry => entry.group === 'ai' && entry.key === 'openrouter_api_key')?.value).toBe('enc.v1.openrouter-123')
     expect(savedPayload.find(entry => entry.group === 'ai' && entry.key === 'market_context_prompt')?.value).toBe('Summarize current market context clearly.')
@@ -629,6 +660,43 @@ describe('updateGeneralSettingsAction', () => {
     const savedPayload = mocks.updateSettings.mock.calls[0][0] as Array<{ group: string, key: string, value: string }>
     expect(savedPayload.find(entry => entry.key === 'site_logo_mode')?.value).toBe('image')
     expect(savedPayload.find(entry => entry.key === 'site_logo_image_path')?.value).toBe('theme/site-logo.png')
+  })
+
+  it('does not overwrite integration settings when the General form omits them', async () => {
+    mocks.getCurrentUser.mockResolvedValueOnce({ id: 'admin-1', is_admin: true })
+    mocks.updateSettings.mockResolvedValueOnce({ data: [], error: null })
+
+    const { updateGeneralSettingsAction } = await import('@/app/[locale]/admin/(general)/_actions/update-general-settings')
+    const formData = new FormData()
+    formData.set('site_name', 'Kuest')
+    formData.set('site_description', 'Prediction market')
+    formData.set('logo_mode', 'svg')
+    formData.set('logo_svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>')
+    formData.set('logo_image_path', '')
+
+    const result = await updateGeneralSettingsAction({ error: null }, formData)
+    expect(result).toEqual({ error: null })
+
+    const savedPayload = mocks.updateSettings.mock.calls[0][0] as Array<{ group: string, key: string }>
+    const movedIntegrationKeys = new Set([
+      'site_google_analytics',
+      'site_custom_javascript_codes',
+      'lifi_integrator',
+      'lifi_api_key',
+      'arbitrage_enabled',
+      'arbitrage_multi_wallet_enabled',
+      'openrouter_model',
+      'openrouter_api_key',
+      'sports_pandascore_token',
+      'sports_thesportsdb_api_key',
+      'sumsub_enabled',
+      'sumsub_app_token',
+      'sumsub_secret_key',
+      'sumsub_webhook_secret',
+      'sumsub_level_name',
+      'sumsub_enforcement',
+    ])
+    expect(savedPayload.filter(entry => movedIntegrationKeys.has(entry.key))).toEqual([])
   })
 
   it('keeps the existing encrypted LI.FI key when no new key is provided', async () => {
