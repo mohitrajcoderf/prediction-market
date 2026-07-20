@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import type { SupportedLocale } from '@/i18n/locales'
 import { getExtracted, setRequestLocale } from 'next-intl/server'
+import { Suspense } from 'react'
 import LeaderboardClient from '@/app/[locale]/(platform)/leaderboard/_components/LeaderboardClient'
+import LeaderboardPageSkeleton from '@/app/[locale]/(platform)/leaderboard/_components/LeaderboardPageSkeleton'
 import {
   buildLeaderboardPath,
   CATEGORY_OPTIONS,
@@ -119,7 +121,21 @@ export async function generateStaticParams() {
   return params
 }
 
-export default async function LeaderboardPage({ params }: PageProps<'/[locale]/leaderboard/[[...filters]]'>) {
+export default function LeaderboardPage({ params }: PageProps<'/[locale]/leaderboard/[[...filters]]'>) {
+  return (
+    <main className="container w-full py-6 md:py-8">
+      <Suspense fallback={<LeaderboardPageSkeleton />}>
+        <LeaderboardPageWithParams params={params} />
+      </Suspense>
+    </main>
+  )
+}
+
+async function LeaderboardPageWithParams({
+  params,
+}: {
+  params: PageProps<'/[locale]/leaderboard/[[...filters]]'>['params']
+}) {
   const { locale, filters } = await params
 
   return <LeaderboardPageContent locale={locale as SupportedLocale} filters={filters} />
@@ -138,9 +154,5 @@ async function LeaderboardPageContent({
 
   const initialFilters = parseLeaderboardFilters(filters)
 
-  return (
-    <main className="container w-full py-6 md:py-8">
-      <LeaderboardClient initialFilters={initialFilters} />
-    </main>
-  )
+  return <LeaderboardClient initialFilters={initialFilters} />
 }
