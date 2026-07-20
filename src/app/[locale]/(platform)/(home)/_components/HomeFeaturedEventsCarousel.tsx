@@ -1435,6 +1435,7 @@ function FeaturedRightRailSingle({
             alt={sideCard.ctaLabel.trim()}
             fill
             loading="eager"
+            fetchPriority="high"
             sizes="(min-width: 1024px) 32vw, 280px"
             className="object-cover transition-transform duration-300 group-hover/side-card:scale-[1.02]"
           />
@@ -1627,7 +1628,8 @@ function FeaturedSideCardSlide({
               src={slide.imageUrl}
               alt={slide.ctaLabel.trim()}
               fill
-              loading="eager"
+              loading={isActive ? 'eager' : 'lazy'}
+              fetchPriority={isActive ? 'high' : 'low'}
               sizes="(min-width: 1024px) 32vw, 280px"
               className="object-cover transition-transform duration-300 group-hover/side-card:scale-[1.02]"
             />

@@ -28,7 +28,7 @@ const config: NextConfig = {
     unoptimized: process.env.DISABLE_IMAGE_OPTIMIZATION === 'true',
     loader: 'custom',
     loaderFile: './src/lib/image/image-loader.ts',
-    deviceSizes: [256],
+    deviceSizes: [256, 384, 640, 768],
     imageSizes: [16, 20, 24, 32, 36, 40, 42, 44, 48, 56, 64, 96, 128],
     remotePatterns: optimizedImageHostPatterns.map(hostname => ({
       protocol: 'https',
