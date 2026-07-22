@@ -13,6 +13,7 @@ import { useLiveSeriesPriceSnapshot } from '../_hooks/useLiveSeriesPriceSnapshot
 import { useLiveSeriesWebSocket } from '../_hooks/useLiveSeriesWebSocket'
 import {
   buildAxis,
+  classifyLiveSeriesReference,
   findLiveSeriesEvent,
   formatDateAtTimezone,
   formatTimeAtTimezone,
@@ -20,6 +21,7 @@ import {
   getVisibleCountdownUnits,
   hexToRgba,
   inferIntervalMsFromSeriesSlug,
+  isCanonicalBinanceDailySnapshot,
   isUsEquityMarketOpen,
   LIVE_CHART_HEIGHT,
   LIVE_CHART_MARGIN_BOTTOM,
@@ -37,6 +39,7 @@ import {
   normalizeLiveChartPrice,
   normalizeSubscriptionSymbol,
   parseUtcDate,
+  requiresCanonicalBinanceDailyClose,
   resolveEventEndTimestamp,
   resolveLiveSeriesDisplayPrice,
   SERIES_KEY,
@@ -191,6 +194,7 @@ function EventLiveSeriesChartContent({
 
   const {
     referenceSnapshot,
+    referenceSnapshotStatus,
     baselinePrice,
     setBaselinePrice,
     persistedFallbackPrice: snapshotFallbackPrice,
@@ -209,6 +213,13 @@ function EventLiveSeriesChartContent({
   const chartNowMs = isEventClosed ? endTimestamp : nowMs
 
   const persistedFallbackPrice = snapshotFallbackPrice
+  const seriesReferenceClassification = useMemo(
+    () => classifyLiveSeriesReference({
+      topic: config.topic,
+      activeWindowMinutes: config.active_window_minutes,
+    }),
+    [config.active_window_minutes, config.topic],
+  )
 
   const { data, status } = useLiveSeriesWebSocket({
     topic: config.topic,
@@ -283,8 +294,16 @@ function EventLiveSeriesChartContent({
 
     return persistedFallbackPrice.price
   }, [endTimestamp, persistedFallbackPrice])
+  const hasCanonicalBinanceDailySnapshot = isCanonicalBinanceDailySnapshot(referenceSnapshot)
+  const requiresCanonicalBinanceClose = requiresCanonicalBinanceDailyClose({
+    snapshot: referenceSnapshot,
+    snapshotStatus: referenceSnapshotStatus,
+    seriesClassification: seriesReferenceClassification,
+  })
   const finalPrice = isEventClosed
-    ? referenceClosingPrice ?? latestReferencePriceBeforeEnd ?? persistedFallbackPriceBeforeEnd
+    ? requiresCanonicalBinanceClose
+      ? hasCanonicalBinanceDailySnapshot ? referenceClosingPrice : null
+      : referenceClosingPrice ?? latestReferencePriceBeforeEnd ?? persistedFallbackPriceBeforeEnd
     : null
 
   const fallbackCurrentPrice = useMemo(() => {
@@ -364,7 +383,7 @@ function EventLiveSeriesChartContent({
     }
 
     if (!isFinitePositivePrice(finalPrice)) {
-      return preCloseData
+      return requiresCanonicalBinanceClose ? [] : preCloseData
     }
 
     return [
@@ -374,7 +393,7 @@ function EventLiveSeriesChartContent({
         [SERIES_KEY]: finalPrice,
       },
     ].slice(-MAX_POINTS)
-  }, [closedFallbackData, data, endTimestamp, finalPrice, isEventClosed])
+  }, [closedFallbackData, data, endTimestamp, finalPrice, isEventClosed, requiresCanonicalBinanceClose])
 
   const renderData = useMemo(() => {
     if (!dataSource.length) {
@@ -441,6 +460,7 @@ function EventLiveSeriesChartContent({
     finalPrice,
     renderedPrice,
     fallbackCurrentPrice,
+    requiresCanonicalClose: requiresCanonicalBinanceClose,
   })
   const axisSourceData = renderData
   const resolvedBaselinePrice = isEventClosed
