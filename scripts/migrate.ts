@@ -179,8 +179,8 @@ async function applyMigrations(sql: ReservedSql, isSupabase: boolean): Promise<v
   const migrationsPolicyRole = isSupabase ? 'service_role' : 'CURRENT_USER'
   await sql.unsafe(`
     CREATE TABLE IF NOT EXISTS migrations (
-      version TEXT PRIMARY KEY,
-      applied_at TIMESTAMPTZ DEFAULT NOW()
+                                            version TEXT PRIMARY KEY,
+                                            applied_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     ALTER TABLE migrations ENABLE ROW LEVEL SECURITY;
