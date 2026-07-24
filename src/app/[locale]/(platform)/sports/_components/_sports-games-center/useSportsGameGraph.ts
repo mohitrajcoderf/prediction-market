@@ -3,7 +3,7 @@ import type { SportsGameGraphVariant, SportsGamesMarketType, SportsGraphSeriesTa
 import type { TIME_RANGES } from '@/app/[locale]/(platform)/event/[slug]/_hooks/useEventPriceHistory'
 import type { SportsGamesCard } from '@/app/[locale]/(platform)/sports/_utils/sports-games-data'
 import type { DataPoint, PredictionChartCursorSnapshot } from '@/types/PredictionChartTypes'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useOptionalMarketChannelSubscription } from '@/app/[locale]/(platform)/event/[slug]/_components/EventMarketChannelProvider'
 import { useEventMarketQuotes } from '@/app/[locale]/(platform)/event/[slug]/_hooks/useEventMidPrices'
 import { useEventPriceHistory } from '@/app/[locale]/(platform)/event/[slug]/_hooks/useEventPriceHistory'
@@ -26,6 +26,115 @@ import {
   trimTradeFlowItems,
 } from './sports-games-center-utils'
 
+const FONT_SIZE_PATTERN = /(\d+(?:\.\d+)?)px/
+const WHITESPACE_PATTERN = /\s/
+const NARROW_CHARACTER_PATTERN = /[ilI1|.,'`]/
+const WIDE_CHARACTER_PATTERN = /[mw@%&]/i
+
+interface SportsLegendTextMeasurements {
+  nameWidthsByKey: Map<string, number>
+  renderedWidth: number
+}
+
+function estimateTextWidthConservatively(text: string, font: string) {
+  const fontSize = Number(font.match(FONT_SIZE_PATTERN)?.[1] ?? 14)
+
+  return Array.from(text).reduce((width, character) => {
+    if (WHITESPACE_PATTERN.test(character)) {
+      return width + (fontSize * 0.33)
+    }
+    if (NARROW_CHARACTER_PATTERN.test(character)) {
+      return width + (fontSize * 0.35)
+    }
+    if (WIDE_CHARACTER_PATTERN.test(character)) {
+      return width + fontSize
+    }
+    if ((character.codePointAt(0) ?? 0) > 0x7F) {
+      return width + fontSize
+    }
+    return width + (fontSize * 0.7)
+  }, 0)
+}
+
+function buildSportsLegendTextMeasurements({
+  chartSeries,
+  positionedLegendLayout,
+  measureText,
+}: {
+  chartSeries: Array<{ key: string, name: string }>
+  positionedLegendLayout: SportsPositionedLegendLayout
+  measureText: (text: string, font: string) => number
+}): SportsLegendTextMeasurements {
+  const nameWidthsByKey = new Map<string, number>()
+  let longestLabelWidth = 0
+
+  for (const seriesItem of chartSeries) {
+    const label = seriesItem.name.trim()
+    const width = label ? measureText(label, positionedLegendLayout.nameFont) : 0
+    nameWidthsByKey.set(seriesItem.key, width)
+    longestLabelWidth = Math.max(longestLabelWidth, width)
+  }
+
+  const widestValueWidth = measureText('100%', positionedLegendLayout.valueFont)
+  const targetWidth = Math.ceil(
+    Math.max(longestLabelWidth, widestValueWidth)
+    + positionedLegendLayout.horizontalPaddingPx,
+  )
+
+  return {
+    nameWidthsByKey,
+    renderedWidth: Math.max(positionedLegendLayout.minWidthPx, targetWidth),
+  }
+}
+
+function createSportsLegendTextMeasurementStore({
+  enabled,
+  chartSeries,
+  positionedLegendLayout,
+}: {
+  enabled: boolean
+  chartSeries: Array<{ key: string, name: string }>
+  positionedLegendLayout: SportsPositionedLegendLayout
+}) {
+  let measurements = buildSportsLegendTextMeasurements({
+    chartSeries,
+    positionedLegendLayout,
+    measureText: estimateTextWidthConservatively,
+  })
+  let hasMeasuredRenderedText = false
+
+  function getSnapshot() {
+    return measurements
+  }
+
+  function subscribe(onStoreChange: () => void) {
+    if (!hasMeasuredRenderedText && enabled && chartSeries.length > 0) {
+      hasMeasuredRenderedText = true
+      const context = document.createElement('canvas').getContext('2d')
+
+      if (context) {
+        measurements = buildSportsLegendTextMeasurements({
+          chartSeries,
+          positionedLegendLayout,
+          measureText(text, font) {
+            context.font = font
+            return context.measureText(text).width
+          },
+        })
+        onStoreChange()
+      }
+    }
+
+    return function unsubscribeFromSportsLegendTextMeasurements() {}
+  }
+
+  return {
+    getServerSnapshot: getSnapshot,
+    getSnapshot,
+    subscribe,
+  }
+}
+
 export function useSportsGameGraphChartSettings() {
   const [chartSettings, setChartSettings] = useState(function resolveInitialGraphChartSettings() {
     const stored = loadStoredChartSettings()
@@ -43,12 +152,10 @@ export function useSportsGameGraphChartSettings() {
 export function useSportsGameGraphChartDimensions({
   containerWidth,
   chartHeightOffset = 0,
-  windowWidth,
   variant,
 }: {
   containerWidth?: number | null
   chartHeightOffset?: number
-  windowWidth: number | undefined
   variant: SportsGameGraphVariant
 }) {
   const isSportsEventHeroVariant = variant === 'sportsEventHero'
@@ -68,14 +175,8 @@ export function useSportsGameGraphChartDimensions({
       return Math.max(1, Math.round(containerWidth))
     }
 
-    const viewportWidth = windowWidth ?? 1200
-
-    if (viewportWidth < 768) {
-      return Math.max(260, viewportWidth - 112)
-    }
-
-    return Math.min(860, viewportWidth - 520)
-  }, [containerWidth, windowWidth])
+    return 860
+  }, [containerWidth])
 
   return {
     isSportsEventHeroVariant,
@@ -486,43 +587,22 @@ export function useSportsGameGraphHeroLegend({
     [canRenderPositionedSeriesLegend, chartSeries, cursorSnapshot, latestSnapshot],
   )
 
-  const heroLegendRenderedWidth = useMemo(() => {
-    if (!canRenderPositionedSeriesLegend || chartSeries.length === 0) {
-      return positionedLegendLayout.minWidthPx
-    }
-
-    if (typeof document === 'undefined') {
-      return positionedLegendLayout.minWidthPx
-    }
-
-    const context = document.createElement('canvas').getContext('2d')
-    if (!context) {
-      return positionedLegendLayout.minWidthPx
-    }
-
-    context.font = positionedLegendLayout.nameFont
-
-    const longestLabelWidth = chartSeries.reduce((maxWidth, seriesItem) => {
-      const label = seriesItem.name.trim()
-      if (!label) {
-        return maxWidth
-      }
-
-      return Math.max(maxWidth, context.measureText(label).width)
-    }, 0)
-
-    context.font = positionedLegendLayout.valueFont
-    const widestValueWidth = heroLegendSeriesWithValues.reduce((maxWidth, entry) => {
-      const label = `${Math.round(entry.value)}%`
-      return Math.max(maxWidth, context.measureText(label).width)
-    }, context.measureText('100%').width)
-
-    const targetWidth = Math.ceil(
-      Math.max(longestLabelWidth, widestValueWidth)
-      + positionedLegendLayout.horizontalPaddingPx,
-    )
-    return Math.max(positionedLegendLayout.minWidthPx, targetWidth)
-  }, [canRenderPositionedSeriesLegend, chartSeries, heroLegendSeriesWithValues, positionedLegendLayout])
+  const legendTextMeasurementStore = useMemo(
+    () => createSportsLegendTextMeasurementStore({
+      enabled: canRenderPositionedSeriesLegend,
+      chartSeries,
+      positionedLegendLayout,
+    }),
+    [canRenderPositionedSeriesLegend, chartSeries, positionedLegendLayout],
+  )
+  const legendTextMeasurements = useSyncExternalStore(
+    legendTextMeasurementStore.subscribe,
+    legendTextMeasurementStore.getSnapshot,
+    legendTextMeasurementStore.getServerSnapshot,
+  )
+  const heroLegendRenderedWidth = canRenderPositionedSeriesLegend && chartSeries.length > 0
+    ? legendTextMeasurements.renderedWidth
+    : positionedLegendLayout.minWidthPx
 
   const chartXDomain = useMemo(() => {
     if (!usesPositionedSeriesLegend || chartData.length < 2) {
@@ -627,13 +707,6 @@ export function useSportsGameGraphHeroLegend({
       const labelLeft = Math.max(plotLeft, Math.min(maxLeft, dotX + positionedLegendLayout.labelGapPx))
       const availableLabelWidth = Math.max(1, chartWidth - labelLeft - positionedLegendLayout.rightInsetPx)
 
-      const labelMeasureContext = typeof document !== 'undefined'
-        ? document.createElement('canvas').getContext('2d')
-        : null
-      if (labelMeasureContext) {
-        labelMeasureContext.font = positionedLegendLayout.nameFont
-      }
-
       const yBounds = calculateYAxisBounds(chartData, chartSeries, yAxisMinTicks, 6)
       const ySpan = Math.max(1, yBounds.max - yBounds.min)
       const preferredEntries = heroLegendSeriesWithValues.map((entry) => {
@@ -641,7 +714,7 @@ export function useSportsGameGraphHeroLegend({
         const dotY = chartMargin.top + ((yBounds.max - clampedValue) / ySpan) * plotHeight
         const normalizedName = entry.name.trim()
         const measuredNameWidth = normalizedName
-          ? (labelMeasureContext?.measureText(normalizedName).width ?? normalizedName.length * 7)
+          ? (legendTextMeasurements.nameWidthsByKey.get(entry.key) ?? 0)
           : 0
         const wrappedNameLineCount = Math.max(1, Math.ceil(measuredNameWidth / availableLabelWidth))
         const labelHeight = Math.max(
@@ -699,6 +772,7 @@ export function useSportsGameGraphHeroLegend({
       chartData,
       chartHeight,
       heroLegendRenderedWidth,
+      legendTextMeasurements,
       chartMargin.bottom,
       chartMargin.left,
       chartMargin.right,
