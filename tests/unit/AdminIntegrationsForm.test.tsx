@@ -1,10 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import AdminIntegrationsForm from '@/app/[locale]/admin/integrations/_components/AdminIntegrationsForm'
 
 vi.mock('next-intl', () => ({
-  useExtracted: () => (message: string) => message,
+  useExtracted: () => (value: string | { message: string }) => (
+    typeof value === 'string' ? value : value.message
+  ),
 }))
 
 vi.mock('next/image', () => ({
@@ -38,6 +40,10 @@ const props = {
     enabled: false,
     multiWalletEnabled: false,
   },
+  kuestSupportSettings: {
+    enabled: true,
+    position: 'right' as const,
+  },
   sumsubSettings: {
     enabled: false,
     enforcement: 'disabled' as const,
@@ -49,6 +55,36 @@ const props = {
 }
 
 describe('adminIntegrationsForm', () => {
+  afterEach(() => {
+    window.history.replaceState(window.history.state, '', window.location.pathname)
+  })
+
+  it('allows an accordion opened by a URL fragment to collapse', () => {
+    window.history.replaceState(window.history.state, '', '#openrouter')
+    render(<AdminIntegrationsForm {...props} />)
+    const trigger = screen.getByRole('button', { name: /OpenRouter/ })
+
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(trigger)
+
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(window.location.hash).toBe('')
+  })
+
+  it('reflects an updated saved support widget position', () => {
+    const { container, rerender } = render(<AdminIntegrationsForm {...props} />)
+    expect(container.querySelector('#integration-kuest-support-position')).toHaveAttribute('data-state', 'checked')
+
+    rerender(
+      <AdminIntegrationsForm
+        {...props}
+        kuestSupportSettings={{ enabled: true, position: 'left' }}
+      />,
+    )
+
+    expect(container.querySelector('#integration-kuest-support-position')).toHaveAttribute('data-state', 'unchecked')
+  })
+
   it('renders each integration as its own accordion card', () => {
     const { container } = render(<AdminIntegrationsForm {...props} />)
 
@@ -62,11 +98,12 @@ describe('adminIntegrationsForm', () => {
       'pandascore',
       'lifi',
       'polymarket',
+      'kuest-support',
       'custom',
     ])
     expect(screen.getByRole('button', { name: /TheSportsDB/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /PandaScore/ })).toBeInTheDocument()
-    expect(container.querySelectorAll('img')).toHaveLength(7)
+    expect(container.querySelectorAll('img')).toHaveLength(8)
     expect(container.querySelector('img[src="/images/logos/sumsub.svg"]')).toBeInTheDocument()
     expect(container.querySelector('[data-settings-section="custom"] svg')).toBeInTheDocument()
   })

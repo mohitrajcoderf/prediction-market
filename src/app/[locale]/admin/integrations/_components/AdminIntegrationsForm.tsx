@@ -1,5 +1,6 @@
 'use client'
 
+import type { KuestSupportPosition } from '@/lib/admin-support-settings'
 import type { CustomJavascriptCodeConfig, CustomJavascriptCodeDisablePage } from '@/lib/custom-javascript-code'
 import type { SumsubEnforcement } from '@/lib/sumsub/types'
 import { FileBracesIcon, RefreshCwIcon } from 'lucide-react'
@@ -17,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { clearLocationHash, useLocationHash } from '@/hooks/useLocationHash'
 import {
   MAX_CUSTOM_JAVASCRIPT_CODE_NAME_LENGTH,
   MAX_CUSTOM_JAVASCRIPT_CODE_SNIPPET_LENGTH,
@@ -56,6 +58,10 @@ export interface AdminIntegrationsFormProps {
   arbitrageSettings: {
     enabled: boolean
     multiWalletEnabled: boolean
+  }
+  kuestSupportSettings: {
+    enabled: boolean
+    position: KuestSupportPosition
   }
   sumsubSettings: {
     enabled: boolean
@@ -115,8 +121,9 @@ function toDraft(code: CustomJavascriptCodeConfig, index: number): CustomJavascr
   return { id: `custom-integration-${index}`, ...code }
 }
 
-export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps) {
+function AdminIntegrationsFormInner(props: AdminIntegrationsFormProps) {
   const t = useExtracted()
+  const locationHash = useLocationHash()
   const [openSections, setOpenSections] = useState<string[]>([])
   const [googleAnalyticsId, setGoogleAnalyticsId] = useState(props.googleAnalyticsId)
   const [openRouterApiKey, setOpenRouterApiKey] = useState('')
@@ -130,6 +137,8 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
   const [lifiApiKey, setLifiApiKey] = useState('')
   const [arbitrageEnabled, setArbitrageEnabled] = useState(props.arbitrageSettings.enabled)
   const [arbitrageMultiWalletEnabled, setArbitrageMultiWalletEnabled] = useState(props.arbitrageSettings.multiWalletEnabled)
+  const [kuestSupportEnabled, setKuestSupportEnabled] = useState(props.kuestSupportSettings.enabled)
+  const [kuestSupportPosition, setKuestSupportPosition] = useState(props.kuestSupportSettings.position)
   const [sumsubEnabled, setSumsubEnabled] = useState(props.sumsubSettings.enabled)
   const [sumsubAppToken, setSumsubAppToken] = useState('')
   const [sumsubSecretKey, setSumsubSecretKey] = useState('')
@@ -169,9 +178,20 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
     && (sumsubSecretKey.trim() || props.sumsubSettings.secretKeyConfigured)
     && sumsubLevelName.trim(),
   )
+  const linkedOpenSection = locationHash === 'openrouter' || locationHash === 'kuest-support'
+    ? locationHash
+    : null
+  const visibleOpenSections = useMemo(
+    () => new Set(linkedOpenSection ? [...openSections, linkedOpenSection] : openSections),
+    [linkedOpenSection, openSections],
+  )
 
   function toggleSection(value: string) {
-    setOpenSections(previous => previous.includes(value)
+    const isOpen = visibleOpenSections.has(value)
+    if (linkedOpenSection === value) {
+      clearLocationHash()
+    }
+    setOpenSections(previous => isOpen
       ? previous.filter(section => section !== value)
       : [...previous, value])
   }
@@ -247,6 +267,8 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
       <input type="hidden" name="openrouter_model" value={openRouterModel} />
       <input type="hidden" name="arbitrage_enabled" value={String(arbitrageEnabled)} />
       <input type="hidden" name="arbitrage_multi_wallet_enabled" value={String(arbitrageMultiWalletEnabled)} />
+      <input type="hidden" name="kuest_support_enabled" value={String(kuestSupportEnabled)} />
+      <input type="hidden" name="kuest_support_position" value={kuestSupportPosition} />
       <input type="hidden" name="sumsub_enabled" value={String(sumsubEnabled)} />
       <input type="hidden" name="sumsub_enforcement" value={sumsubEnforcement} />
       <input type="hidden" name="custom_javascript_codes_json" value={serializedCustomJavascriptCodes} />
@@ -254,7 +276,7 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
       <div className="grid gap-4">
         <SettingsAccordionSection
           value="google-analytics"
-          isOpen={openSections.includes('google-analytics')}
+          isOpen={visibleOpenSections.has('google-analytics')}
           onToggle={toggleSection}
           header={<IntegrationHeader title="Google Analytics" description={t('Measure visits and user behavior with Google Analytics.')} logo="/images/logos/google-analytics.svg" />}
         >
@@ -267,7 +289,7 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
 
         <SettingsAccordionSection
           value="openrouter"
-          isOpen={openSections.includes('openrouter')}
+          isOpen={visibleOpenSections.has('openrouter')}
           onToggle={toggleSection}
           header={<IntegrationHeader title="OpenRouter" description={t('Use AI models for market creation, context, translations, and featured markets.')} logo="/images/logos/open-router.svg" />}
         >
@@ -298,7 +320,7 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
 
         <SettingsAccordionSection
           value="sumsub"
-          isOpen={openSections.includes('sumsub')}
+          isOpen={visibleOpenSections.has('sumsub')}
           onToggle={toggleSection}
           header={<IntegrationHeader title="Sumsub" description={t('Verify user identities and manage KYC requirements with Sumsub.')} logo="/images/logos/sumsub.svg" />}
         >
@@ -345,7 +367,7 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
 
         <SettingsAccordionSection
           value="thesportsdb"
-          isOpen={openSections.includes('thesportsdb')}
+          isOpen={visibleOpenSections.has('thesportsdb')}
           onToggle={toggleSection}
           header={<IntegrationHeader title="TheSportsDB" description={t('Import traditional sports schedules, teams, and scores from TheSportsDB.')} logo="/images/logos/thesportsdb.svg" />}
         >
@@ -358,7 +380,7 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
 
         <SettingsAccordionSection
           value="pandascore"
-          isOpen={openSections.includes('pandascore')}
+          isOpen={visibleOpenSections.has('pandascore')}
           onToggle={toggleSection}
           header={<IntegrationHeader title="PandaScore" description={t('Import esports schedules, teams, and results from PandaScore.')} logo="/images/logos/pandascore.svg" />}
         >
@@ -371,7 +393,7 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
 
         <SettingsAccordionSection
           value="lifi"
-          isOpen={openSections.includes('lifi')}
+          isOpen={visibleOpenSections.has('lifi')}
           onToggle={toggleSection}
           header={<IntegrationHeader title="LI.FI" description={t('Route cross-chain swaps and deposits through LI.FI.')} logo="/images/logos/lifi.svg" />}
         >
@@ -390,7 +412,7 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
 
         <SettingsAccordionSection
           value="polymarket"
-          isOpen={openSections.includes('polymarket')}
+          isOpen={visibleOpenSections.has('polymarket')}
           onToggle={toggleSection}
           header={<IntegrationHeader title="Polymarket" description={t('Compare mirrored markets and enable arbitrage trading with Polymarket.')} logo="/images/logos/polymarket-icon-black.svg" />}
         >
@@ -413,8 +435,67 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
         </SettingsAccordionSection>
 
         <SettingsAccordionSection
+          value="kuest-support"
+          isOpen={visibleOpenSections.has('kuest-support')}
+          onToggle={toggleSection}
+          header={(
+            <IntegrationHeader
+              title="Kuest Support"
+              description={t({
+                id: 'adminIntegrations.kuestSupportDescription',
+                message: 'Offer direct support from every admin page.',
+              })}
+              logo="/images/logos/kuest-icon.svg"
+            />
+          )}
+        >
+          <div className="grid gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="integration-kuest-support-enabled">
+                {t({
+                  id: 'adminIntegrations.enableKuestSupport',
+                  message: 'Enable Kuest Support',
+                })}
+              </Label>
+              <Switch
+                id="integration-kuest-support-enabled"
+                checked={kuestSupportEnabled}
+                onCheckedChange={setKuestSupportEnabled}
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-xl border bg-muted/30 p-4">
+              <Label htmlFor="integration-kuest-support-position">
+                {t({
+                  id: 'adminIntegrations.widgetPosition',
+                  message: 'Widget position',
+                })}
+              </Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {t({ id: 'adminIntegrations.left', message: 'Left' })}
+                </span>
+                <Switch
+                  id="integration-kuest-support-position"
+                  checked={kuestSupportPosition === 'right'}
+                  onCheckedChange={checked => setKuestSupportPosition(checked ? 'right' : 'left')}
+                  disabled={isPending}
+                  aria-label={t({
+                    id: 'adminIntegrations.widgetPosition',
+                    message: 'Widget position',
+                  })}
+                />
+                <span className="text-xs text-muted-foreground">
+                  {t({ id: 'adminIntegrations.right', message: 'Right' })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </SettingsAccordionSection>
+
+        <SettingsAccordionSection
           value="custom"
-          isOpen={openSections.includes('custom')}
+          isOpen={visibleOpenSections.has('custom')}
           onToggle={toggleSection}
           header={<IntegrationHeader title={t('Custom Integrations')} description={t('Add third-party JavaScript for chat, analytics, support, and other tools.')} customIcon />}
         >
@@ -472,5 +553,14 @@ export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps)
         {isPending ? t('Saving...') : t('Save settings')}
       </Button>
     </form>
+  )
+}
+
+export default function AdminIntegrationsForm(props: AdminIntegrationsFormProps) {
+  return (
+    <AdminIntegrationsFormInner
+      key={`${props.kuestSupportSettings.enabled}:${props.kuestSupportSettings.position}`}
+      {...props}
+    />
   )
 }
