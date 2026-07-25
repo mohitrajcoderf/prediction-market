@@ -1,4 +1,4 @@
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatPercent } from '@/lib/formatters'
 
 interface AffiliateSettingsResponse {
   builderTakerFeePercent: number
@@ -73,10 +73,6 @@ export async function fetchAffiliateSettingsFromAPI(): Promise<AffiliateDataResu
   }
 }
 
-export function calculateTradingFee(amount: number, feeDecimal: number): number {
-  return amount * feeDecimal
-}
-
 export function calculateAffiliateCommission(feeAmount: number, affiliateShareDecimal: number): number {
   return feeAmount * affiliateShareDecimal
 }
@@ -85,21 +81,15 @@ export function calculateOperatorShare(feeAmount: number, operatorShareDecimal: 
   return feeAmount * operatorShareDecimal
 }
 
-export function createFeeCalculationExample(
-  tradeAmount: number,
+export function createTradingFeeRateExample(
   affiliateSettings: FormattedAffiliateSettings,
+  clobFeeBps: number,
 ) {
-  const operatorTakerFee = calculateTradingFee(tradeAmount, affiliateSettings.builderTakerFeeDecimal)
-  const affiliateCommission = calculateAffiliateCommission(operatorTakerFee, affiliateSettings.affiliateShareDecimal)
-  const operatorShare = calculateOperatorShare(operatorTakerFee, affiliateSettings.operatorShareDecimal)
+  const configuredFeeBps = Math.round(affiliateSettings.builderTakerFeeDecimal * 10_000)
+  const tradingFeeBps = Math.max(0, clobFeeBps) + Math.max(0, configuredFeeBps)
 
   return {
-    tradeAmount: formatCurrency(tradeAmount, { includeSymbol: false }),
-    operatorTakerFee: formatCurrency(operatorTakerFee, { includeSymbol: false }),
-    affiliateCommission: formatCurrency(affiliateCommission, { includeSymbol: false }),
-    operatorShare: formatCurrency(operatorShare, { includeSymbol: false }),
-    builderTakerFeePercent: affiliateSettings.builderTakerFeePercent,
-    affiliateSharePercent: affiliateSettings.affiliateSharePercent,
-    operatorSharePercent: affiliateSettings.operatorSharePercent,
+    tradingFeeBps,
+    tradingFeePercent: formatPercent(tradingFeeBps / 100, { includeSymbol: false }),
   }
 }
