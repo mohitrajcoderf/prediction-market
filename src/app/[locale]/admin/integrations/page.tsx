@@ -12,6 +12,8 @@ import { parseSportsSourceProviderSettings } from '@/lib/sports-source/settings'
 import { parseSumsubSettings, sanitizeSumsubSettings } from '@/lib/sumsub/settings'
 import { getThemeSiteSettingsFormState } from '@/lib/theme-settings'
 
+export const instant = false
+
 function AdminIntegrationsFallback() {
   return <AdminAccordionSkeleton itemCount={9} showDescription />
 }

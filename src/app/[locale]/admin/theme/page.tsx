@@ -10,6 +10,8 @@ import { getThemePresetOptions } from '@/lib/theme'
 import { getThemeSettingsFormState, getThemeSiteSettingsFormState } from '@/lib/theme-settings'
 import { DEFAULT_THEME_SITE_PWA_ICON_192_URL, DEFAULT_THEME_SITE_PWA_ICON_512_URL } from '@/lib/theme-site-identity'
 
+export const instant = false
+
 function AdminThemeSettingsFallback() {
   return <AdminSettingsSkeleton sectionCount={3} />
 }

@@ -8,6 +8,8 @@ import { SUPPORTED_LOCALES } from '@/i18n/locales'
 import { parseOpenRouterProviderSettings } from '@/lib/ai/market-context-config'
 import { SettingsRepository } from '@/lib/db/queries/settings'
 
+export const instant = false
+
 async function DynamicMarker() {
   await connection()
   return null

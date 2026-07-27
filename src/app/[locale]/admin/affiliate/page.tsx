@@ -12,6 +12,8 @@ import { SettingsRepository } from '@/lib/db/queries/settings'
 import { getPublicAssetUrl } from '@/lib/storage'
 import { getFeeRecipientWalletFormValue } from '@/lib/theme-settings'
 
+export const instant = false
+
 interface AffiliateOverviewRow {
   affiliate_user_id: string
   total_referrals: number | null
