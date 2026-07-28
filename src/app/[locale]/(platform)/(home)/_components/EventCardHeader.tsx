@@ -1,5 +1,5 @@
 import type { Event, Market } from '@/types'
-import { useExtracted } from 'next-intl'
+import { useExtracted, useLocale } from 'next-intl'
 import { ViewTransition } from 'react'
 import {
   formatHomeCardChanceLabel,
@@ -9,6 +9,7 @@ import EventIconImage from '@/components/EventIconImage'
 import { useOutcomeLabel } from '@/hooks/useOutcomeLabel'
 import { Link } from '@/i18n/navigation'
 import { OUTCOME_INDEX } from '@/lib/constants'
+import { resolveCryptoCadenceEventTitle } from '@/lib/crypto-cadence-event'
 import { resolveEventPagePath } from '@/lib/events-routing'
 import { isEventResolvedLike } from '@/lib/home-events'
 import { cn } from '@/lib/utils'
@@ -33,6 +34,7 @@ export default function EventCardHeader({
   roundedPrimaryDisplayChance,
 }: EventCardHeaderProps) {
   const t = useExtracted()
+  const locale = useLocale()
   const normalizeOutcomeLabel = useOutcomeLabel()
   const isResolvedEvent = isEventResolvedLike(event)
   const yesOutcome = primaryMarket ? resolveHomeCardBinaryOutcome(primaryMarket, OUTCOME_INDEX.YES) : null
@@ -53,7 +55,8 @@ export default function EventCardHeader({
   const primaryChanceLabel = formatHomeCardChanceLabel(roundedPrimaryDisplayChance)
   const eventHref = resolveEventPagePath(event)
   const isSportsEvent = Boolean(event.sports_event_id || event.sports_sport_slug || event.sports_event_slug)
-  const canShareTitle = title === event.title
+  const eventDisplayTitle = resolveCryptoCadenceEventTitle(event, locale) ?? event.title
+  const canShareTitle = title === eventDisplayTitle
   const titleNode = (
     <h3
       className={cn(

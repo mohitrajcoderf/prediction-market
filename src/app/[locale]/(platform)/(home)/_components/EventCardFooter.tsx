@@ -3,6 +3,13 @@ import { Repeat } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import EventBookmark from '@/app/[locale]/(platform)/event/[slug]/_components/EventBookmark'
 import { NewBadge } from '@/components/ui/new-badge'
+import { Link } from '@/i18n/navigation'
+import {
+  isCryptoEvent,
+  resolveCryptoCadenceRouteSlug,
+  resolveCryptoEventAsset,
+  resolveCryptoEventAssetName,
+} from '@/lib/crypto-cadence-event'
 import { formatVolume } from '@/lib/formatters'
 import { isEventResolvedLike } from '@/lib/home-events'
 
@@ -23,7 +30,16 @@ export default function EventCardFooter({
 }: EventCardFooterProps) {
   const t = useExtracted()
   const isResolvedEvent = isEventResolvedLike(event)
-  const recurrenceLabel = event.series_recurrence?.trim().toLowerCase() || null
+  const isCrypto = isCryptoEvent(event)
+  const isLiveCryptoEvent = showLiveBadge && isCrypto
+  const showNewBadge = shouldShowNewBadge && !showLiveBadge
+  const isCryptoCadenceEvent = isCrypto && Boolean(resolveCryptoCadenceRouteSlug(event))
+  const cryptoAsset = isCryptoCadenceEvent ? resolveCryptoEventAsset(event) : null
+  const cryptoAssetName = cryptoAsset ? resolveCryptoEventAssetName(event) : null
+  const shouldHideRecurrence = isCryptoCadenceEvent
+  const recurrenceLabel = shouldHideRecurrence
+    ? null
+    : event.series_recurrence?.trim().toLowerCase() || null
   const recurrenceDisplayLabel = recurrenceLabel === 'daily'
     ? t('Daily')
     : recurrenceLabel === 'weekly'
@@ -37,7 +53,7 @@ export default function EventCardFooter({
   return (
     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
       <div className="flex items-center gap-2">
-        {showLiveBadge && !shouldShowNewBadge && (
+        {showLiveBadge && (
           <span className="flex items-center gap-1.5">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-2 animate-ping rounded-full bg-red-500 opacity-75" />
@@ -46,13 +62,26 @@ export default function EventCardFooter({
             <span className="leading-none font-medium text-red-500 uppercase">{t('Live')}</span>
           </span>
         )}
-        {shouldShowNewBadge
+        {showNewBadge
           ? <NewBadge />
-          : (
-              <span>
-                {t('{amount} Vol.', { amount: formatVolume(resolvedVolume) })}
-              </span>
-            )}
+          : isLiveCryptoEvent
+            ? null
+            : (
+                <span>
+                  {t('{amount} Vol.', { amount: formatVolume(resolvedVolume) })}
+                </span>
+              )}
+        {cryptoAsset && cryptoAssetName && (
+          <>
+            <span aria-hidden>·</span>
+            <Link
+              href={`/crypto/${cryptoAsset.slug}`}
+              className="transition-colors hover:text-foreground hover:underline"
+            >
+              {cryptoAssetName}
+            </Link>
+          </>
+        )}
         {recurrenceDisplayLabel && (
           <span className="inline-flex items-center gap-1 text-muted-foreground">
             <Repeat className="size-3" />

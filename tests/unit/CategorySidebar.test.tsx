@@ -2,6 +2,7 @@ import type { AnchorHTMLAttributes } from 'react'
 import { render, screen } from '@testing-library/react'
 import { createElement } from 'react'
 import CategorySidebar from '@/app/[locale]/(platform)/(home)/_components/CategorySidebar'
+import { resolveCategorySidebarData } from '@/lib/category-sidebar-config'
 
 vi.mock('next-intl', () => ({
   useExtracted: () => (message: string) => message,
@@ -51,6 +52,13 @@ describe('categorySidebar', () => {
     expect(screen.getAllByText('0')).toHaveLength(1)
     expect(screen.getByText('3')).toBeInTheDocument()
     expect(screen.getByText('1')).toBeInTheDocument()
+
+    const fiveMinuteLink = screen.getByRole('link', { name: /5 Min/ })
+    const fiveMinuteIcon = fiveMinuteLink.querySelector('svg')
+    expect(fiveMinuteIcon).not.toBeNull()
+    expect(fiveMinuteIcon?.querySelector('[stroke="currentColor"]')).not.toBeNull()
+    expect(fiveMinuteIcon?.parentElement).toHaveClass('text-foreground')
+    expect(fiveMinuteLink.querySelector('img')).toBeNull()
   })
 
   it('uses custom href overrides for configured items', () => {
@@ -75,5 +83,54 @@ describe('categorySidebar', () => {
     )
 
     expect(screen.getByRole('link', { name: 'Earnings Calendar' })).toHaveAttribute('href', '/earnings')
+  })
+
+  it('renders category icons inline and preserves the crypto asset logo section', () => {
+    const { childs, sidebarItems } = resolveCategorySidebarData({
+      categorySlug: 'crypto',
+      categoryCount: 12,
+      childs: [],
+    })
+
+    render(
+      <CategorySidebar
+        categorySlug="crypto"
+        categoryTitle="Crypto"
+        activeSubcategorySlug={null}
+        onNavigate={() => {}}
+        sidebarItems={sidebarItems}
+        subcategories={childs}
+      />,
+    )
+
+    const inlineIconLabels = [
+      'All',
+      '5 Min',
+      '15 Min',
+      '1 Hour',
+      '4 Hours',
+      'Daily',
+      'Weekly',
+      'Monthly',
+      'Yearly',
+      'Targets',
+      'Pre-Market',
+      'Institutions',
+      'Industry',
+      'Protocol Metrics',
+    ]
+    for (const label of inlineIconLabels) {
+      const link = screen.getByRole('link', { name: new RegExp(`^${label}\\d+$`) })
+      const icon = link.querySelector('svg')
+      expect(icon).not.toBeNull()
+      expect(icon?.querySelector('[stroke="currentColor"], [fill="currentColor"]')).not.toBeNull()
+      expect(icon?.parentElement).toHaveClass('text-foreground')
+    }
+
+    const assetLabels = ['Bitcoin', 'Ethereum', 'Solana', 'XRP', 'Dogecoin', 'BNB', 'MicroStrategy']
+    for (const label of assetLabels) {
+      const link = screen.getByRole('link', { name: new RegExp(label, 'i') })
+      expect(link.querySelector('img')).not.toBeNull()
+    }
   })
 })

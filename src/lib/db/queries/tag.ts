@@ -7,6 +7,11 @@ import { cacheTag } from 'next/cache'
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from '@/i18n/locales'
 import { cacheTags } from '@/lib/cache-tags'
 import { resolveCategorySidebarData } from '@/lib/category-sidebar-config'
+import {
+  CRYPTO_CADENCE_ROUTES,
+  resolveCryptoCadenceRouteSlug,
+  resolveCryptoCadenceSidebarLabel,
+} from '@/lib/crypto-cadence-event'
 import { event_tags, events, tag_translations, tags, v_main_tag_subcategories } from '@/lib/db/schema/events/tables'
 import { runQuery } from '@/lib/db/utils/run-query'
 import { db } from '@/lib/drizzle'
@@ -77,6 +82,7 @@ interface SidebarCountEventCandidate {
   id: string
   slug: string
   status: 'draft' | 'active' | 'resolved' | 'archived'
+  series_recurrence?: string | null
   series_slug?: string | null
   end_date?: string | null
   created_at: string
@@ -95,6 +101,7 @@ function createSidebarCountEventCandidate(row: {
   event_id: string
   event_slug: string
   event_status: SidebarCountEventCandidate['status']
+  series_recurrence: string | null
   series_slug: string | null
   end_date: Date | null
   created_at: Date
@@ -104,6 +111,7 @@ function createSidebarCountEventCandidate(row: {
     id: row.event_id,
     slug: row.event_slug,
     status: row.event_status,
+    series_recurrence: row.series_recurrence,
     series_slug: row.series_slug,
     end_date: row.end_date?.toISOString() ?? null,
     created_at: row.created_at.toISOString(),
@@ -267,6 +275,7 @@ async function getVisibleActiveEventCountsByTagSlugs(tagSlugs: string[]): Promis
         event_id: events.id,
         event_slug: events.slug,
         event_status: events.status,
+        series_recurrence: events.series_recurrence,
         series_slug: events.series_slug,
         end_date: events.end_date,
         created_at: events.created_at,
@@ -303,6 +312,7 @@ async function getVisibleActiveEventCountsByTagSlugs(tagSlugs: string[]): Promis
         event_id: row.event_id,
         event_slug: row.event_slug,
         event_status: row.event_status as SidebarCountEventCandidate['status'],
+        series_recurrence: row.series_recurrence,
         series_slug: row.series_slug,
         end_date: row.end_date,
         created_at: row.created_at,
@@ -401,6 +411,7 @@ export const TagRepository = {
           event_id: events.id,
           event_slug: events.slug,
           event_status: events.status,
+          series_recurrence: events.series_recurrence,
           series_slug: events.series_slug,
           end_date: events.end_date,
           created_at: events.created_at,
@@ -441,6 +452,7 @@ export const TagRepository = {
           event_id: row.event_id,
           event_slug: row.event_slug,
           event_status: row.event_status as SidebarCountEventCandidate['status'],
+          series_recurrence: row.series_recurrence,
           series_slug: row.series_slug,
           end_date: row.end_date,
           created_at: row.created_at,
@@ -505,7 +517,13 @@ export const TagRepository = {
       for (const mainSlug of mainTagsForEvent) {
         mainCategoryEventCounts.set(mainSlug, (mainCategoryEventCounts.get(mainSlug) ?? 0) + 1)
 
-        for (const subSlug of subTagsForEvent) {
+        const resolvedSubTagsForEvent = new Set(subTagsForEvent)
+        const cadenceRouteSlug = resolveCryptoCadenceRouteSlug(event)
+        if (mainSlug === 'crypto' && cadenceRouteSlug) {
+          resolvedSubTagsForEvent.add(cadenceRouteSlug)
+        }
+
+        for (const subSlug of resolvedSubTagsForEvent) {
           const key = `${mainSlug}::${subSlug}`
           subcategoryEventCounts.set(key, (subcategoryEventCounts.get(key) ?? 0) + 1)
         }
@@ -567,6 +585,21 @@ export const TagRepository = {
           return b.count - a.count
         })
         .map(({ name, slug, count }) => ({ name, slug, count }))
+      if (tag.slug === 'crypto') {
+        for (const cadenceRoute of CRYPTO_CADENCE_ROUTES) {
+          const cadenceCount = subcategoryEventCounts.get(`${tag.slug}::${cadenceRoute.routeSlug}`) ?? 0
+          if (
+            cadenceCount > 0
+            && !sortedChilds.some(child => child.slug === cadenceRoute.routeSlug)
+          ) {
+            sortedChilds.push({
+              name: resolveCryptoCadenceSidebarLabel(cadenceRoute, locale),
+              slug: cadenceRoute.routeSlug,
+              count: cadenceCount,
+            })
+          }
+        }
+      }
       const { childs: resolvedChilds, sidebarItems } = resolveCategorySidebarData({
         categorySlug: tag.slug,
         categoryCount: mainCategoryEventCounts.get(tag.slug) ?? 0,

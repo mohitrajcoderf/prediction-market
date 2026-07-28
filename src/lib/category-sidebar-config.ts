@@ -27,6 +27,24 @@ interface ResolveCategorySidebarDataParams {
   childs: PlatformNavigationChild[]
 }
 
+interface ResolveCategorySidebarPageTitleParams {
+  activeSubcategorySlug: string | null
+  categorySlug: string
+  categoryTitle: string
+  childs: PlatformNavigationChild[]
+}
+
+const CRYPTO_CADENCE_PAGE_TITLE_SLUGS = new Set([
+  '5m',
+  '15m',
+  'hourly',
+  '4hour',
+  'daily',
+  'weekly',
+  'monthly',
+  'yearly',
+])
+
 const categorySidebarTemplates: Partial<Record<string, CategorySidebarTemplateItem[]>> = {
   crypto: [
     { type: 'link', slug: 'crypto', label: 'All', icon: 'all-grid', isAll: true },
@@ -38,8 +56,11 @@ const categorySidebarTemplates: Partial<Record<string, CategorySidebarTemplateIt
     { type: 'link', slug: 'weekly', label: 'Weekly', icon: 'weekly' },
     { type: 'link', slug: 'monthly', label: 'Monthly', icon: 'monthly' },
     { type: 'link', slug: 'yearly', label: 'Yearly', icon: 'yearly' },
+    { type: 'link', slug: 'targets', label: 'Targets', icon: 'targets' },
     { type: 'link', slug: 'pre-market', label: 'Pre-Market', icon: 'pre-market' },
-    { type: 'link', slug: 'etf', label: 'ETF', icon: 'etf' },
+    { type: 'link', slug: 'institutions', label: 'Institutions', icon: 'institutions' },
+    { type: 'link', slug: 'industry', label: 'Industry', icon: 'industry' },
+    { type: 'link', slug: 'protocol-metrics', label: 'Protocol Metrics', icon: 'protocol-metrics' },
     { type: 'divider', key: 'crypto-assets' },
     { type: 'link', slug: 'bitcoin', label: 'Bitcoin', icon: 'bitcoin' },
     { type: 'link', slug: 'ethereum', label: 'Ethereum', icon: 'ethereum' },
@@ -47,7 +68,7 @@ const categorySidebarTemplates: Partial<Record<string, CategorySidebarTemplateIt
     { type: 'link', slug: 'xrp', label: 'XRP', icon: 'xrp' },
     { type: 'link', slug: 'dogecoin', label: 'Dogecoin', icon: 'dogecoin' },
     { type: 'link', slug: 'bnb', label: 'BNB', icon: 'bnb' },
-    { type: 'link', slug: 'microstrategy', label: 'Microstrategy', icon: 'microstrategy' },
+    { type: 'link', slug: 'microstrategy', label: 'MicroStrategy', icon: 'microstrategy' },
   ],
   finance: [
     { type: 'link', slug: 'finance', label: 'All', icon: 'all-grid', isAll: true },
@@ -95,6 +116,32 @@ function isLinkItem(item: CategorySidebarTemplateItem): item is CategorySidebarT
   return item.type === 'link'
 }
 
+export function resolveCategorySidebarPageTitle({
+  activeSubcategorySlug,
+  categorySlug,
+  categoryTitle,
+  childs,
+}: ResolveCategorySidebarPageTitleParams) {
+  if (!activeSubcategorySlug) {
+    return categoryTitle
+  }
+
+  const normalizedSubcategorySlug = activeSubcategorySlug.toLowerCase()
+  const activeSubcategory = childs.find(child =>
+    child.slug.toLowerCase() === normalizedSubcategorySlug,
+  )
+  if (!activeSubcategory) {
+    return categoryTitle
+  }
+
+  const shouldAppendCrypto = categorySlug.toLowerCase() === 'crypto'
+    && CRYPTO_CADENCE_PAGE_TITLE_SLUGS.has(normalizedSubcategorySlug)
+
+  return shouldAppendCrypto
+    ? `${activeSubcategory.name} ${categoryTitle}`
+    : activeSubcategory.name
+}
+
 export function resolveCategorySidebarData({
   categoryCount,
   categorySlug,
@@ -136,7 +183,7 @@ export function resolveCategorySidebarData({
     .filter(item => item.includeInChilds !== false)
     .map(item => ({
       slug: item.slug,
-      name: item.label,
+      name: childsBySlug.get(item.slug)?.name ?? item.label,
       count: childsBySlug.get(item.slug)?.count ?? 0,
     }))
 
@@ -152,7 +199,7 @@ export function resolveCategorySidebarData({
       return {
         type: 'link',
         slug: item.slug,
-        label: item.label,
+        label: childsBySlug.get(item.slug)?.name ?? item.label,
         count: item.showCount === false
           ? undefined
           : item.isAll
