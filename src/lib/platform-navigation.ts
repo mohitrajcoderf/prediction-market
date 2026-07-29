@@ -26,6 +26,7 @@ export type PlatformCategorySidebarIconKey
     | 'xrp'
     | 'bnb'
     | 'dogecoin'
+    | 'hype'
     | 'microstrategy'
     | 'stocks'
     | 'earnings'
@@ -33,6 +34,7 @@ export type PlatformCategorySidebarIconKey
     | 'commodities'
     | 'forex'
     | 'collectibles'
+    | 'privates'
     | 'acquisitions'
     | 'earnings-calendar'
     | 'earnings-calls'
@@ -40,7 +42,10 @@ export type PlatformCategorySidebarIconKey
     | 'fed-rates'
     | 'prediction-markets'
     | 'treasuries'
+    | 'kpis'
     | 'temperature'
+    | 'high-temperature'
+    | 'low-temperature'
     | 'precipitation'
     | 'global'
     | 'tornadoes'
@@ -58,6 +63,7 @@ export interface PlatformCategorySidebarLinkItem {
   href?: string
   icon?: PlatformCategorySidebarIconKey
   isAll?: boolean
+  subItems?: PlatformCategorySidebarLinkItem[]
 }
 
 export type PlatformCategorySidebarItem
