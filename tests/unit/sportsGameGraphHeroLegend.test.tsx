@@ -23,15 +23,42 @@ const chartData = [
 ]
 
 describe('sportsGameGraphHistory', () => {
-  it('keeps a real live-only point without fabricating a historical baseline', () => {
+  it('renders live-only sports quotes across the selected range', () => {
     expect(
       appendLiveSportsHistoryPoint({
         history: [],
         livePointValues: { chiefs: 59, gloucester: 17, draw: 20 },
+        eventCreatedAt: '2026-07-27T10:00:00.000Z',
         eventResolvedAt: null,
+        activeTimeRange: '1H',
         now: new Date('2026-07-27T12:00:00.000Z'),
       }),
-    ).toEqual([{ date: new Date('2026-07-27T12:00:00.000Z'), chiefs: 59, gloucester: 17, draw: 20 }])
+    ).toEqual([
+      { date: new Date('2026-07-27T11:00:00.000Z'), chiefs: 59, gloucester: 17, draw: 20 },
+      { date: new Date('2026-07-27T12:00:00.000Z'), chiefs: 59, gloucester: 17, draw: 20 },
+    ])
+  })
+
+  it('moves the flat endpoint forward when the active chart clock refreshes', () => {
+    const params = {
+      history: [],
+      livePointValues: { chiefs: 59, gloucester: 17, draw: 20 },
+      eventCreatedAt: '2026-07-27T10:00:00.000Z',
+      eventResolvedAt: null,
+      activeTimeRange: '1H' as const,
+    }
+
+    const firstChart = appendLiveSportsHistoryPoint({
+      ...params,
+      now: new Date('2026-07-27T12:00:00.000Z'),
+    })
+    const refreshedChart = appendLiveSportsHistoryPoint({
+      ...params,
+      now: new Date('2026-07-27T12:00:30.000Z'),
+    })
+
+    expect(firstChart.at(-1)?.date).toEqual(new Date('2026-07-27T12:00:00.000Z'))
+    expect(refreshedChart.at(-1)?.date).toEqual(new Date('2026-07-27T12:00:30.000Z'))
   })
 
   it('does not fabricate chart data when neither history nor live quotes exist', () => {
@@ -39,7 +66,9 @@ describe('sportsGameGraphHistory', () => {
       appendLiveSportsHistoryPoint({
         history: [],
         livePointValues: {},
+        eventCreatedAt: '2026-07-27T10:00:00.000Z',
         eventResolvedAt: null,
+        activeTimeRange: '1H',
         now: new Date('2026-07-27T12:00:00.000Z'),
       }),
     ).toEqual([])
@@ -55,7 +84,9 @@ describe('sportsGameGraphHistory', () => {
       appendLiveSportsHistoryPoint({
         history,
         livePointValues: { chiefs: 59, gloucester: 17, draw: 20 },
+        eventCreatedAt: '2026-07-26T12:00:00.000Z',
         eventResolvedAt: null,
+        activeTimeRange: '1W',
         now: new Date('2026-07-27T12:00:00.000Z'),
       }),
     ).toEqual([...history, { date: new Date('2026-07-27T12:00:00.000Z'), chiefs: 59, gloucester: 17, draw: 20 }])
