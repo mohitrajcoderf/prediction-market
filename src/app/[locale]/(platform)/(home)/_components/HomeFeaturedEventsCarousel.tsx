@@ -57,6 +57,7 @@ import { useSiteIdentity } from '@/hooks/useSiteIdentity'
 import { Link } from '@/i18n/navigation'
 import { getAvatarPlaceholderStyle, shouldUseAvatarPlaceholder } from '@/lib/avatar'
 import { ensureReadableTextColorOnDark } from '@/lib/color-contrast'
+import { resolveCryptoCadenceEventPresentation } from '@/lib/crypto-cadence-event'
 import { resolveEventOutcomePath, resolveEventPagePath } from '@/lib/events-routing'
 import { formatDollarValueLabel, formatVolume } from '@/lib/formatters'
 import { resolveHomeFeaturedSportsScoreboardContent } from '@/lib/home-featured-sports-score'
@@ -84,6 +85,25 @@ const HOME_FEATURED_NAVIGATION_UPDATE = {
   default: 'none' as const,
 }
 const FEATURED_SPORTS_BUTTON_DARK_TEXT_VAR = '--featured-sports-button-dark-text'
+
+function skipHomeFeaturedNavigationTransition() {
+  const activeTransition = document.activeViewTransition
+  if (!activeTransition) {
+    return
+  }
+
+  let isHomeFeaturedNavigation = false
+  activeTransition.types?.forEach((type) => {
+    if (type === HOME_FEATURED_NAVIGATION_TYPE) {
+      isHomeFeaturedNavigation = true
+    }
+  })
+
+  if (isHomeFeaturedNavigation) {
+    activeTransition.skipTransition()
+  }
+}
+
 type FeaturedSportsButtonTone = 'home' | 'away' | 'draw' | 'neutral'
 interface FeaturedSportsButtonMarket {
   key: string
@@ -378,8 +398,10 @@ function FeaturedHeaderActions({ event, className }: { event: HomeFeaturedEventC
 
 function FeaturedHeader({ item, showActions = true }: { item: HomeFeaturedEventCard; showActions?: boolean }) {
   const t = useExtracted()
+  const locale = useLocale()
   const event = item.event
   const eventHref = resolveEventPagePath(event)
+  const cryptoCadencePresentation = resolveCryptoCadenceEventPresentation(event, locale)
   const breadcrumbItems = resolveFeaturedBreadcrumbItems(item).map((breadcrumbItem) => ({
     ...breadcrumbItem,
     label:
@@ -395,7 +417,7 @@ function FeaturedHeader({ item, showActions = true }: { item: HomeFeaturedEventC
                 ? t('Esports')
                 : breadcrumbItem.label,
   }))
-  const displayTitle = resolveFeaturedDisplayTitle(item)
+  const displayTitle = cryptoCadencePresentation?.title ?? resolveFeaturedDisplayTitle(item)
 
   return (
     <div className="flex min-w-0 items-start justify-between gap-3">
@@ -411,7 +433,7 @@ function FeaturedHeader({ item, showActions = true }: { item: HomeFeaturedEventC
           </Link>
         )}
         <div className="grid min-w-0 gap-1">
-          <FeaturedBreadcrumb items={breadcrumbItems} />
+          {!cryptoCadencePresentation && <FeaturedBreadcrumb items={breadcrumbItems} />}
           <Link
             href={eventHref}
             className={cn(
@@ -420,6 +442,11 @@ function FeaturedHeader({ item, showActions = true }: { item: HomeFeaturedEventC
           >
             {displayTitle}
           </Link>
+          {cryptoCadencePresentation?.subtitle && (
+            <span className="truncate text-xs text-muted-foreground md:text-sm">
+              {cryptoCadencePresentation.subtitle}
+            </span>
+          )}
         </div>
       </div>
 
@@ -1072,19 +1099,20 @@ function ContextTickerItem({
   currentTimestamp,
   index,
   linkedHref,
+  omitCommentTime,
 }: {
   contextItem: HomeFeaturedContextItem
   currentTimestamp: number | null
   index: number
   linkedHref: string
+  omitCommentTime: boolean
 }) {
   const locale = useLocale()
-  const timeLabel = formatContextRelativeTime(
-    contextItem.publishedAt ?? contextItem.selectedAt,
-    currentTimestamp,
-    locale,
-  )
   const isNews = contextItem.type === 'news'
+  const timeLabel =
+    !isNews && omitCommentTime
+      ? null
+      : formatContextRelativeTime(contextItem.publishedAt ?? contextItem.selectedAt, currentTimestamp, locale)
 
   return (
     <Link key={`${contextItem.id}:${index}`} href={linkedHref} className="flex h-14 min-w-0 items-center gap-2">
@@ -1123,6 +1151,8 @@ function ContextTicker({
   item: HomeFeaturedEventCard
   linkedHref: string
 }) {
+  const omitCommentTime = resolveCryptoCadenceEventPresentation(item.event) !== null
+
   if (item.contextItems.length === 0) {
     return null
   }
@@ -1153,6 +1183,7 @@ function ContextTicker({
             currentTimestamp={currentTimestamp}
             index={index}
             linkedHref={linkedHref}
+            omitCommentTime={omitCommentTime}
           />
         ))}
       </div>
@@ -1945,6 +1976,18 @@ export default function HomeFeaturedEventsCarousel({
     return () => observer.disconnect()
   }, [])
 
+  useEffect(function stopFeaturedNavigationTransitionOnScroll() {
+    window.addEventListener('scroll', skipHomeFeaturedNavigationTransition, { passive: true })
+    window.addEventListener('touchmove', skipHomeFeaturedNavigationTransition, { passive: true })
+    window.addEventListener('wheel', skipHomeFeaturedNavigationTransition, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', skipHomeFeaturedNavigationTransition)
+      window.removeEventListener('touchmove', skipHomeFeaturedNavigationTransition)
+      window.removeEventListener('wheel', skipHomeFeaturedNavigationTransition)
+    }
+  }, [])
+
   if (!activeItem) {
     return null
   }
@@ -2039,24 +2082,18 @@ export default function HomeFeaturedEventsCarousel({
                 className="group h-10 overflow-visible rounded-full bg-transparent p-0 text-muted-foreground shadow-none hover:bg-transparent hover:text-muted-foreground"
                 onClick={() => goToIndex(activeIndex - 1)}
               >
-                <ViewTransition
-                  name="home-featured-navigation-previous-shell"
-                  default="none"
-                  update={HOME_FEATURED_NAVIGATION_UPDATE}
-                >
-                  <span className="relative inline-flex h-10 max-w-60 min-w-10 items-center overflow-hidden rounded-full bg-secondary text-muted-foreground shadow-xs group-hover:bg-secondary/80">
-                    <span className="inline-flex h-10 min-w-10 items-center gap-2 px-3 md:px-4">
-                      <ChevronLeftIcon className="size-4" />
-                      <ViewTransition
-                        name="home-featured-navigation-previous-text"
-                        default="none"
-                        update={HOME_FEATURED_NAVIGATION_UPDATE}
-                      >
-                        <span className="hidden max-w-44 truncate text-xs md:block">{activeItem.previousTitle}</span>
-                      </ViewTransition>
-                    </span>
+                <span className="relative inline-flex h-10 max-w-60 min-w-10 items-center overflow-hidden rounded-full bg-secondary text-muted-foreground shadow-xs group-hover:bg-secondary/80">
+                  <span className="inline-flex h-10 min-w-10 items-center gap-2 px-3 md:px-4">
+                    <ChevronLeftIcon className="size-4" />
+                    <ViewTransition
+                      name="home-featured-navigation-previous-text"
+                      default="none"
+                      update={HOME_FEATURED_NAVIGATION_UPDATE}
+                    >
+                      <span className="hidden max-w-44 truncate text-xs md:block">{activeItem.previousTitle}</span>
+                    </ViewTransition>
                   </span>
-                </ViewTransition>
+                </span>
               </Button>
               <Button
                 type="button"
@@ -2064,24 +2101,18 @@ export default function HomeFeaturedEventsCarousel({
                 className="group h-10 overflow-visible rounded-full bg-transparent p-0 text-muted-foreground shadow-none hover:bg-transparent hover:text-muted-foreground"
                 onClick={() => goToIndex(activeIndex + 1)}
               >
-                <ViewTransition
-                  name="home-featured-navigation-next-shell"
-                  default="none"
-                  update={HOME_FEATURED_NAVIGATION_UPDATE}
-                >
-                  <span className="relative inline-flex h-10 max-w-60 min-w-10 items-center overflow-hidden rounded-full bg-secondary text-muted-foreground shadow-xs group-hover:bg-secondary/80">
-                    <span className="inline-flex h-10 min-w-10 items-center gap-2 px-3 md:px-4">
-                      <ViewTransition
-                        name="home-featured-navigation-next-text"
-                        default="none"
-                        update={HOME_FEATURED_NAVIGATION_UPDATE}
-                      >
-                        <span className="hidden max-w-44 truncate text-xs md:block">{activeItem.nextTitle}</span>
-                      </ViewTransition>
-                      <ChevronRightIcon className="size-4" />
-                    </span>
+                <span className="relative inline-flex h-10 max-w-60 min-w-10 items-center overflow-hidden rounded-full bg-secondary text-muted-foreground shadow-xs group-hover:bg-secondary/80">
+                  <span className="inline-flex h-10 min-w-10 items-center gap-2 px-3 md:px-4">
+                    <ViewTransition
+                      name="home-featured-navigation-next-text"
+                      default="none"
+                      update={HOME_FEATURED_NAVIGATION_UPDATE}
+                    >
+                      <span className="hidden max-w-44 truncate text-xs md:block">{activeItem.nextTitle}</span>
+                    </ViewTransition>
+                    <ChevronRightIcon className="size-4" />
                   </span>
-                </ViewTransition>
+                </span>
               </Button>
             </div>
           </div>
