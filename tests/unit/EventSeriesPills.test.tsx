@@ -75,4 +75,70 @@ describe('eventSeriesPills', () => {
     expect(screen.getByText('9:00 AM ET')).toBeInTheDocument()
     expect(screen.getByText('9:05 AM ET')).toBeInTheDocument()
   })
+
+  it.each([
+    ['1-hour', 60 * 60 * 1000, '2026-07-28T13:00:00.000Z'],
+    ['4-hour', 4 * 60 * 60 * 1000, '2026-07-28T16:00:00.000Z'],
+  ])('moves later %s events into More', (_, tradingWindowMs, firstEndDate) => {
+    const firstEndTimestamp = Date.parse(firstEndDate)
+
+    render(
+      <EventSeriesPills
+        currentEventSlug="event-1"
+        seriesEvents={[0, 1, 2, 3].map((offset) =>
+          createSeriesEvent(
+            `event-${offset + 1}`,
+            new Date(firstEndTimestamp + offset * tradingWindowMs).toISOString(),
+          ),
+        )}
+        tradingWindowMs={tradingWindowMs}
+        variant="live"
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument()
+  })
+
+  it('shows past 4-hour results with ET time labels', () => {
+    render(
+      <EventSeriesPills
+        currentEventSlug="event-1"
+        seriesEvents={[
+          createSeriesEvent('past-event', '2026-07-28T12:00:00.000Z', {
+            status: 'resolved',
+            resolved_at: '2026-07-28T12:00:00.000Z',
+            resolved_direction: 'down',
+          }),
+          createSeriesEvent('event-1', '2026-07-28T16:00:00.000Z'),
+        ]}
+        tradingWindowMs={4 * 60 * 60 * 1000}
+        variant="live"
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: '8 AM' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Jul 28' })).not.toBeInTheDocument()
+  })
+
+  it.each([5, 15])('shows both future pills without More for %i-minute events', (minutes) => {
+    const tradingWindowMs = minutes * 60 * 1000
+    const firstEndTimestamp = Date.parse('2026-07-28T12:50:00.000Z')
+
+    render(
+      <EventSeriesPills
+        currentEventSlug="event-1"
+        seriesEvents={[0, 1, 2].map((offset) =>
+          createSeriesEvent(
+            `event-${offset + 1}`,
+            new Date(firstEndTimestamp + offset * tradingWindowMs).toISOString(),
+          ),
+        )}
+        tradingWindowMs={tradingWindowMs}
+        variant="live"
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('link')).toHaveLength(3)
+  })
 })

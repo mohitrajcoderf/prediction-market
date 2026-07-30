@@ -10,8 +10,9 @@ import type { EventSeriesEntry } from '@/types'
 
 import { isShortLiveSeriesCadence } from '@/app/[locale]/(platform)/event/[slug]/_utils/eventLiveSeriesChartUtils'
 import {
+  isLiveSeriesPillStackCadence,
   resolveLiveSeriesPillLabel,
-  resolveShortCadenceSeriesPillVisibility,
+  resolveLiveSeriesPillVisibility,
 } from '@/app/[locale]/(platform)/event/[slug]/_utils/eventSeriesPillLabels'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -369,11 +370,12 @@ export default function EventSeriesPills({
 
   if (variant === 'live') {
     const isShortCadence = isShortLiveSeriesCadence(tradingWindowMs)
-    const { visibleEvents, overflowEvents } = resolveShortCadenceSeriesPillVisibility({
+    const usesIntradayPillLabels = isLiveSeriesPillStackCadence(tradingWindowMs)
+    const { visibleEvents, overflowEvents } = resolveLiveSeriesPillVisibility({
       currentEventSlug,
       currentTradingEventId,
       events: unresolvedEvents,
-      isShortCadence,
+      shouldStack: usesIntradayPillLabels,
     })
     const pastResultBadges = pastResolvedEvents
       .filter((event) => event.slug !== currentEventSlug)
@@ -421,8 +423,8 @@ export default function EventSeriesPills({
                       {pastResultBadges.map(({ event, direction }) => {
                         const isUp = direction === 'up'
                         const shouldDim = hoveredPastBadgeId !== null && hoveredPastBadgeId !== event.id
-                        const resultLabel = isShortCadence
-                          ? getSeriesEventPillTimeLabel(event, 'America/New_York', true)
+                        const resultLabel = usesIntradayPillLabels
+                          ? getSeriesEventPillTimeLabel(event, 'America/New_York', isShortCadence)
                           : getSeriesEventLabel(event)
                         return (
                           <Tooltip key={event.id}>
