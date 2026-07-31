@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDownIcon, FilterIcon, Loader2Icon, SearchIcon, SettingsIcon, XIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 
 import type { AdminEventRow } from '@/app/[locale]/admin/events/_hooks/useAdminEvents'
@@ -22,6 +22,13 @@ import { updateEventSyncSettingsAction } from '@/app/[locale]/admin/events/_acti
 import { updateEventVisibilityAction } from '@/app/[locale]/admin/events/_actions/update-event-visibility'
 import { useAdminEventsColumns } from '@/app/[locale]/admin/events/_components/columns'
 import { useAdminEventsTable } from '@/app/[locale]/admin/events/_hooks/useAdminEvents'
+import {
+  getServerHideCryptoPreference,
+  readHideCryptoPreference,
+  storeHideCryptoPreference,
+  subscribeToHideCryptoPreference,
+} from '@/app/[locale]/admin/events/_lib/admin-events-hide-crypto-preference'
+import { DEFAULT_ADMIN_EVENTS_TABLE_STATE } from '@/app/[locale]/admin/events/_lib/admin-events-table-state'
 import EventIconImage from '@/components/EventIconImage'
 import { Button } from '@/components/ui/button'
 import {
@@ -319,6 +326,18 @@ function useAdminEventsTableState(
 ) {
   const t = useExtracted()
   const queryClient = useQueryClient()
+  const subscribeToHideCryptoAndResetPage = useCallback(
+    (onStoreChange: () => void) =>
+      subscribeToHideCryptoPreference(onStoreChange, () => {
+        onTableStateChange({ pageIndex: 0 })
+      }),
+    [onTableStateChange],
+  )
+  const hideCrypto = useSyncExternalStore(
+    subscribeToHideCryptoAndResetPage,
+    readHideCryptoPreference,
+    getServerHideCryptoPreference,
+  )
 
   const {
     events,
@@ -344,7 +363,7 @@ function useAdminEventsTableState(
     handleActiveOnlyChange,
     handlePageChange,
     handlePageSizeChange,
-  } = useAdminEventsTable(tableState, onTableStateChange)
+  } = useAdminEventsTable(tableState, onTableStateChange, hideCrypto)
 
   const [pendingHiddenId, setPendingHiddenId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -387,6 +406,10 @@ function useAdminEventsTableState(
   const [draftCreator, setDraftCreator] = useState(creator)
   const [draftSeriesSlug, setDraftSeriesSlug] = useState(seriesSlug)
   const [draftAttention, setDraftAttention] = useState<AdminEventAttentionFilter | 'all'>(attention)
+
+  const handleHideCryptoChange = useCallback((nextHideCrypto: boolean) => {
+    storeHideCryptoPreference(nextHideCrypto)
+  }, [])
 
   const handleToggleHidden = useCallback(
     async (event: AdminEventRow, checked: boolean) => {
@@ -474,7 +497,7 @@ function useAdminEventsTableState(
       mainCategorySlug: 'all',
       creator: 'all',
       seriesSlug: 'all',
-      activeOnly: false,
+      activeOnly: DEFAULT_ADMIN_EVENTS_TABLE_STATE.activeOnly,
       attention: 'all',
     })
   }, [handleFiltersChange])
@@ -867,10 +890,12 @@ function useAdminEventsTableState(
     creatorOptions,
     seriesSlug,
     seriesOptions,
+    hideCrypto,
     activeOnly,
     attention,
     handleSearchChange,
     handleSortChange,
+    handleHideCryptoChange,
     handleActiveOnlyChange,
     handlePageChange,
     handlePageSizeChange,
@@ -965,10 +990,12 @@ export default function AdminEventsTable({
     creatorOptions,
     seriesSlug,
     seriesOptions,
+    hideCrypto,
     activeOnly,
     attention,
     handleSearchChange,
     handleSortChange,
+    handleHideCryptoChange,
     handleActiveOnlyChange,
     handlePageChange,
     handlePageSizeChange,
@@ -1056,7 +1083,11 @@ export default function AdminEventsTable({
   )
 
   const hasAppliedFilters =
-    mainCategorySlug !== 'all' || creator !== 'all' || seriesSlug !== 'all' || activeOnly || attention !== 'all'
+    mainCategorySlug !== 'all' ||
+    creator !== 'all' ||
+    seriesSlug !== 'all' ||
+    activeOnly !== DEFAULT_ADMIN_EVENTS_TABLE_STATE.activeOnly ||
+    attention !== 'all'
 
   const filtersButton = (
     <div className="relative">
@@ -1091,6 +1122,21 @@ export default function AdminEventsTable({
       <Switch id="admin-events-active-only" checked={activeOnly} onCheckedChange={handleActiveOnlyChange} />
       <Label htmlFor="admin-events-active-only" className="text-sm font-normal text-muted-foreground">
         {t('Only active')}
+      </Label>
+    </div>
+  )
+
+  const hideCryptoControl = (
+    <div className="flex items-center gap-2">
+      <Switch
+        id="admin-events-hide-crypto"
+        checked={hideCrypto}
+        onCheckedChange={(checked) => {
+          handleHideCryptoChange(checked)
+        }}
+      />
+      <Label htmlFor="admin-events-hide-crypto" className="text-sm font-normal text-muted-foreground">
+        {t('Hide crypto')}
       </Label>
     </div>
   )
@@ -1556,6 +1602,7 @@ export default function AdminEventsTable({
           <div className="flex items-center gap-3">
             {filtersButton}
             {onlyActiveControl}
+            {hideCryptoControl}
           </div>
         }
         toolbarRightContent={
