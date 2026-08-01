@@ -1,4 +1,4 @@
-import { CircleHelpIcon, ImageIcon, ImageUp, Loader2Icon, SearchIcon } from 'lucide-react'
+import { CircleHelpIcon, ImageIcon, ImageUp, SearchIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 
 import type { AdminSportsFormState } from '@/lib/admin-sports-create'
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatSportsSourceProviderLabel } from '@/lib/sports-source/providers'
 import { cn } from '@/lib/utils'
@@ -175,15 +176,17 @@ export function AdminCreateEventStepBasics({
                   </Label>
                   {creationMode === 'recurring' && (
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="text-muted-foreground transition hover:text-foreground"
-                          aria-label={t('Help for title template')}
-                        >
-                          <CircleHelpIcon className="size-4" />
-                        </button>
-                      </TooltipTrigger>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="text-muted-foreground transition hover:text-foreground"
+                            aria-label={t('Help for title template')}
+                          >
+                            <CircleHelpIcon className="size-4" />
+                          </button>
+                        }
+                      />
                       <TooltipContent className="max-w-xs text-left">
                         <div className="grid gap-2">
                           <p>
@@ -230,15 +233,17 @@ export function AdminCreateEventStepBasics({
                   <Label htmlFor="event-slug">{creationMode === 'recurring' ? t('Slug template') : t('Slug')}</Label>
                   {creationMode === 'recurring' && (
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="text-muted-foreground transition hover:text-foreground"
-                          aria-label={t('Help for slug template')}
-                        >
-                          <CircleHelpIcon className="size-4" />
-                        </button>
-                      </TooltipTrigger>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="text-muted-foreground transition hover:text-foreground"
+                            aria-label={t('Help for slug template')}
+                          >
+                            <CircleHelpIcon className="size-4" />
+                          </button>
+                        }
+                      />
                       <TooltipContent className="max-w-xs text-left">
                         <div className="grid gap-2">
                           <p>
@@ -291,15 +296,17 @@ export function AdminCreateEventStepBasics({
                         : t('Resolution date')}
                     </Label>
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="text-muted-foreground transition hover:text-foreground"
-                          aria-label={t('Help for resolution date')}
-                        >
-                          <CircleHelpIcon className="size-4" />
-                        </button>
-                      </TooltipTrigger>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="text-muted-foreground transition hover:text-foreground"
+                            aria-label={t('Help for resolution date')}
+                          >
+                            <CircleHelpIcon className="size-4" />
+                          </button>
+                        }
+                      />
                       <TooltipContent className="max-w-xs text-left">
                         <div className="grid gap-1">
                           {creationMode === 'recurring' ? (
@@ -358,12 +365,23 @@ export function AdminCreateEventStepBasics({
                 <div className="min-w-0 space-y-2">
                   <Label htmlFor="event-creator">{t('Creator')}</Label>
                   <Select
+                    items={[
+                      ...(creationMode !== 'recurring' && eoaAddress
+                        ? [{ label: `${t('EOA wallet')} · ${eoaShortAddress}`, value: '__eoa__' }]
+                        : []),
+                      ...signers.map((signer) => ({
+                        label: `${signer.displayName} · ${signer.shortAddress}`,
+                        value: signer.address,
+                      })),
+                    ]}
                     value={
                       creationMode === 'recurring'
                         ? automaticWalletAddress || undefined
                         : automaticWalletAddress || (eoaAddress ? '__eoa__' : undefined)
                     }
-                    onValueChange={(value: string) => setAutomaticWalletAddress(value === '__eoa__' ? '' : value)}
+                    onValueChange={(value) =>
+                      value !== null && setAutomaticWalletAddress(value === '__eoa__' ? '' : value)
+                    }
                   >
                     <SelectTrigger id="event-creator" className="w-full min-w-0">
                       <SelectValue
@@ -413,8 +431,14 @@ export function AdminCreateEventStepBasics({
                   <div className="space-y-2">
                     <Label htmlFor="recurrence-unit">{t('Recurrence')}</Label>
                     <Select
+                      items={RECURRENCE_OPTIONS.map((option) => ({
+                        label: recurrenceLabels[option.value],
+                        value: option.value,
+                      }))}
                       value={recurrenceUnit || undefined}
-                      onValueChange={(value: string) => setRecurrenceUnit(value as EventCreationRecurrenceUnit)}
+                      onValueChange={(value) =>
+                        value !== null && setRecurrenceUnit(value as EventCreationRecurrenceUnit)
+                      }
                     >
                       <SelectTrigger id="recurrence-unit">
                         <SelectValue placeholder={t('Select cadence')} />
@@ -443,8 +467,9 @@ export function AdminCreateEventStepBasics({
           <div className="space-y-2">
             <Label htmlFor="main-category">{t('Main category')}</Label>
             <Select
+              items={mainCategories.map((category) => ({ label: category.name, value: category.slug }))}
               value={form.mainCategorySlug || undefined}
-              onValueChange={(value: string) => handleFieldChange('mainCategorySlug', value)}
+              onValueChange={(value) => value !== null && handleFieldChange('mainCategorySlug', value)}
             >
               <SelectTrigger id="main-category" className="w-full">
                 <SelectValue placeholder={t('Select main category')} />
@@ -465,9 +490,10 @@ export function AdminCreateEventStepBasics({
                 <div className="space-y-2">
                   <Label htmlFor="sports-section">{t('Sports sub category')}</Label>
                   <Select
+                    items={{ games: t('Games'), props: t('Props') }}
                     value={sportsForm.section || undefined}
-                    onValueChange={(value: string) =>
-                      handleSportsFieldChange('section', value as AdminSportsFormState['section'])
+                    onValueChange={(value) =>
+                      value !== null && handleSportsFieldChange('section', value as AdminSportsFormState['section'])
                     }
                   >
                     <SelectTrigger id="sports-section" className="w-full">
@@ -514,11 +540,7 @@ export function AdminCreateEventStepBasics({
                       onClick={() => void searchSportsMatches()}
                       disabled={isSearchingSportsMatches}
                     >
-                      {isSearchingSportsMatches ? (
-                        <Loader2Icon className="size-4 animate-spin" />
-                      ) : (
-                        <SearchIcon className="size-4" />
-                      )}
+                      {isSearchingSportsMatches ? <Spinner className="size-4" /> : <SearchIcon className="size-4" />}
                       <span>{t('Search')}</span>
                     </Button>
                     {selectedSportsMatch ? (
@@ -569,9 +591,16 @@ export function AdminCreateEventStepBasics({
                     <div className="space-y-1.5">
                       <Label htmlFor="sports-source-provider">{t('Provider')}</Label>
                       <Select
+                        items={[
+                          { label: t('None'), value: 'none' },
+                          ...sportsSourceProviderOptions.map((provider) => ({
+                            label: formatSportsSourceProviderLabel(provider),
+                            value: provider,
+                          })),
+                        ]}
                         value={sportsSourceProviderSelectValue}
-                        onValueChange={(value: string) =>
-                          handleSportsFieldChange('sourceProvider', value === 'none' ? '' : value)
+                        onValueChange={(value) =>
+                          value !== null && handleSportsFieldChange('sourceProvider', value === 'none' ? '' : value)
                         }
                       >
                         <SelectTrigger id="sports-source-provider" className="w-full">
@@ -632,7 +661,14 @@ export function AdminCreateEventStepBasics({
 
                     <div className="space-y-2">
                       <Label htmlFor="sports-sport-slug">{t('Sport slug')}</Label>
-                      <Select value={sportSlugSelectValue} onValueChange={handleSportSlugSelectChange}>
+                      <Select
+                        items={[
+                          ...sportsSlugCatalog.sportOptions,
+                          { label: t('Custom'), value: CUSTOM_SPORTS_SLUG_SELECT_VALUE },
+                        ]}
+                        value={sportSlugSelectValue}
+                        onValueChange={(value) => value !== null && handleSportSlugSelectChange(value)}
+                      >
                         <SelectTrigger id="sports-sport-slug" className="w-full">
                           <SelectValue placeholder={t('Select sport slug')} />
                         </SelectTrigger>
@@ -656,7 +692,14 @@ export function AdminCreateEventStepBasics({
 
                     <div className="space-y-2">
                       <Label htmlFor="sports-league-slug">{t('League slug')}</Label>
-                      <Select value={leagueSlugSelectValue} onValueChange={handleLeagueSlugSelectChange}>
+                      <Select
+                        items={[
+                          ...availableLeagueOptions,
+                          { label: t('Custom'), value: CUSTOM_SPORTS_SLUG_SELECT_VALUE },
+                        ]}
+                        value={leagueSlugSelectValue}
+                        onValueChange={(value) => value !== null && handleLeagueSlugSelectChange(value)}
+                      >
                         <SelectTrigger id="sports-league-slug" className="w-full">
                           <SelectValue placeholder={t('Select league slug')} />
                         </SelectTrigger>

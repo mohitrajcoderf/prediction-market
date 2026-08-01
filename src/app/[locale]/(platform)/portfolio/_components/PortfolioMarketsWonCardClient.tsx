@@ -9,7 +9,6 @@ import { useExtracted } from 'next-intl'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
-import { toast } from 'sonner'
 import { useSignTypedData } from 'wagmi'
 
 import type { PublicPosition } from '@/app/[locale]/(platform)/profile/_components/PublicPositionItem'
@@ -21,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer'
+import { toast } from '@/components/ui/toast'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSignaturePromptRunner } from '@/hooks/useSignaturePromptRunner'
 import { useSiteIdentity } from '@/hooks/useSiteIdentity'
@@ -467,11 +467,7 @@ export default function PortfolioMarketsWonCardClient({ data }: PortfolioMarkets
           </div>
         </div>
 
-        {isMobile ? (
-          <DrawerTrigger asChild>{claimTriggerButton}</DrawerTrigger>
-        ) : (
-          <DialogTrigger asChild>{claimTriggerButton}</DialogTrigger>
-        )}
+        {isMobile ? <DrawerTrigger render={claimTriggerButton} /> : <DialogTrigger render={claimTriggerButton} />}
       </CardContent>
     </Card>
   )

@@ -1,10 +1,11 @@
-import { CircleHelpIcon, Loader2Icon, SparkleIcon } from 'lucide-react'
+import { CircleHelpIcon, SparkleIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -57,11 +58,13 @@ export function AdminCreateEventStepResolution({
                 <Label htmlFor="resolution-rules">{t('Resolution rules')}</Label>
                 {creationMode === 'recurring' && (
                   <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" className="text-muted-foreground transition hover:text-foreground">
-                        <CircleHelpIcon className="size-4" />
-                      </button>
-                    </TooltipTrigger>
+                    <TooltipTrigger
+                      render={
+                        <button type="button" className="text-muted-foreground transition hover:text-foreground">
+                          <CircleHelpIcon className="size-4" />
+                        </button>
+                      }
+                    />
                     <TooltipContent className="max-w-xs text-left">
                       <div className="grid gap-2">
                         <p>
@@ -86,11 +89,7 @@ export function AdminCreateEventStepResolution({
                 onClick={() => setRulesGeneratorDialogOpen(true)}
                 disabled={isGeneratingRules}
               >
-                {isGeneratingRules ? (
-                  <Loader2Icon className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <SparkleIcon className="mr-2 size-4" />
-                )}
+                {isGeneratingRules ? <Spinner className="mr-2 size-4" /> : <SparkleIcon className="mr-2 size-4" />}
                 {t('Generate with AI')}
               </Button>
             </div>

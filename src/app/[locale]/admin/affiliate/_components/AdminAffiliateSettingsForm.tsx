@@ -4,13 +4,13 @@ import { InfoIcon, WalletIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import Form from 'next/form'
 import { useActionState, useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
 
 import { updateForkSettingsAction } from '@/app/[locale]/admin/affiliate/_actions/update-affiliate-settings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { InputError } from '@/components/ui/input-error'
 import { Label } from '@/components/ui/label'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatBpsPercent } from '@/lib/affiliate-fee-settings'
 import { cn } from '@/lib/utils'
@@ -39,17 +39,19 @@ interface AdminInfoTooltipProps {
 function AdminInfoTooltip({ content }: AdminInfoTooltipProps) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            `inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none`,
-          )}
-          aria-label={content}
-        >
-          <InfoIcon className="size-4" aria-hidden />
-        </button>
-      </TooltipTrigger>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            className={cn(
+              `inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none`,
+            )}
+            aria-label={content}
+          >
+            <InfoIcon className="size-4" aria-hidden />
+          </button>
+        }
+      />
       <TooltipContent side="top" className="max-w-72 text-left">
         {content}
       </TooltipContent>

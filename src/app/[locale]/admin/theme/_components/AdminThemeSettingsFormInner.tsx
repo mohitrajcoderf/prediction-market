@@ -3,7 +3,6 @@
 import { useExtracted } from 'next-intl'
 import Form from 'next/form'
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
 
 import type { AdminThemeSettingsFormProps } from '@/app/[locale]/admin/theme/_components/admin-theme-utils'
 import type { ThemeOverrides } from '@/lib/theme'
@@ -16,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { InputError } from '@/components/ui/input-error'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from '@/components/ui/toast'
 import {
   buildThemeCssText,
   DEFAULT_THEME_PRESET_ID,
@@ -177,7 +177,12 @@ function AdminThemeSettingsFormInner({
         <div className="grid items-start gap-6 self-start">
           <div className="grid gap-2">
             <Label htmlFor="theme-preset">{t('Preset')}</Label>
-            <Select value={preset} onValueChange={handlePresetChange} disabled={isPending}>
+            <Select
+              items={presetOptions.map((option) => ({ label: option.label, value: option.id }))}
+              value={preset}
+              onValueChange={(value) => value !== null && handlePresetChange(value)}
+              disabled={isPending}
+            >
               <SelectTrigger id="theme-preset" className="h-12! w-full">
                 <SelectValue placeholder={t('Select preset')} />
               </SelectTrigger>

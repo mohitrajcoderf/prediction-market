@@ -3,7 +3,6 @@
 import { CalendarIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useId, useMemo, useState, useSyncExternalStore } from 'react'
-import { toast } from 'sonner'
 
 import type { PriceHistoryPoint, RangeFilters } from '@/app/[locale]/(platform)/event/[slug]/_utils/priceHistoryApi'
 import type { Market } from '@/types'
@@ -20,6 +19,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from '@/components/ui/toast'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { usePublicRuntimeConfig } from '@/hooks/usePublicRuntimeConfig'
 import { useSiteIdentity } from '@/hooks/useSiteIdentity'
@@ -357,11 +357,9 @@ function EventChartExportDialogBody({
         <div className="space-y-2">
           <Label className="text-sm font-semibold text-foreground">{t('From')}</Label>
           <DropdownMenu open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className={dateButtonClass}>
-                <span>{formatShortDate(fromDate, locale)}</span>
-                <CalendarIcon className="size-4 text-muted-foreground" />
-              </button>
+            <DropdownMenuTrigger render={<button type="button" className={dateButtonClass} />}>
+              <span>{formatShortDate(fromDate, locale)}</span>
+              <CalendarIcon className="size-4 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               side="bottom"
@@ -399,7 +397,11 @@ function EventChartExportDialogBody({
 
         <div className="space-y-2">
           <Label className="text-sm font-semibold text-foreground">{t('Frequency')}</Label>
-          <Select value={frequency} onValueChange={handleFrequencyChange}>
+          <Select
+            items={localizedFrequencyOptions}
+            value={frequency}
+            onValueChange={(value) => value !== null && handleFrequencyChange(value)}
+          >
             <SelectTrigger className="w-full text-sm">
               <SelectValue />
             </SelectTrigger>

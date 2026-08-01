@@ -2,7 +2,7 @@
 
 import type { Route } from 'next'
 
-import { Loader2Icon, SquareArrowOutUpRightIcon } from 'lucide-react'
+import { SquareArrowOutUpRightIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -14,6 +14,7 @@ import EventIconImage from '@/components/EventIconImage'
 import ProfileLink from '@/components/ProfileLink'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { useOutcomeLabel } from '@/hooks/useOutcomeLabel'
 import { usePublicRuntimeConfig } from '@/hooks/usePublicRuntimeConfig'
 import { Link, useRouter } from '@/i18n/navigation'
@@ -720,11 +721,11 @@ export default function ActivityFeed() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-semibold text-foreground md:text-3xl">{t('Activity')}</h1>
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={activeCategoryFilter} onValueChange={setCategoryFilter}>
+          <Select value={activeCategoryFilter} onValueChange={(value) => value !== null && setCategoryFilter(value)}>
             <SelectTrigger className="h-10 text-base font-medium text-foreground">
               <SelectValue className="line-clamp-1">{categoryDisplay}</SelectValue>
             </SelectTrigger>
-            <SelectContent position="popper" align="start">
+            <SelectContent alignItemWithTrigger={false} align="start">
               {categoryOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -733,11 +734,11 @@ export default function ActivityFeed() {
             </SelectContent>
           </Select>
 
-          <Select value={minAmountFilter} onValueChange={setMinAmountFilter}>
+          <Select value={minAmountFilter} onValueChange={(value) => value !== null && setMinAmountFilter(value)}>
             <SelectTrigger className="h-10 text-base font-medium text-foreground">
               <SelectValue className="line-clamp-1">{minAmountDisplay}</SelectValue>
             </SelectTrigger>
-            <SelectContent position="popper" align="start">
+            <SelectContent alignItemWithTrigger={false} align="start">
               {MIN_AMOUNT_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -893,7 +894,7 @@ export default function ActivityFeed() {
 
         {!isLoading && hasHiddenItems && (
           <div className="flex items-center justify-center gap-2 py-3 text-base text-muted-foreground">
-            <Loader2Icon className="size-6 animate-spin" />
+            <Spinner className="size-6" />
             {t('Loading more...')}
           </div>
         )}

@@ -1,10 +1,9 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDownIcon, FilterIcon, Loader2Icon, SearchIcon, SettingsIcon, XIcon } from 'lucide-react'
+import { ChevronDownIcon, FilterIcon, SearchIcon, SettingsIcon, XIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
-import { toast } from 'sonner'
 
 import type { AdminEventRow } from '@/app/[locale]/admin/events/_hooks/useAdminEvents'
 import type {
@@ -51,8 +50,10 @@ import { Input } from '@/components/ui/input'
 import { InputError } from '@/components/ui/input-error'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { Link } from '@/i18n/navigation'
@@ -1067,19 +1068,23 @@ export default function AdminEventsTable({
 
   const settingsButton = (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Button type="button" variant="outline" size="icon" onClick={handleOpenSettings} aria-label={t('Settings')}>
-          <SettingsIcon className="size-4" />
-        </Button>
-      </TooltipTrigger>
+      <TooltipTrigger
+        render={
+          <Button type="button" variant="outline" size="icon" onClick={handleOpenSettings} aria-label={t('Settings')}>
+            <SettingsIcon className="size-4" />
+          </Button>
+        }
+      />
       <TooltipContent>{t('Settings')}</TooltipContent>
     </Tooltip>
   )
 
   const createEventButton = (
-    <Button asChild type="button" className="h-9">
-      <Link href="/admin/events/calendar">{t('Create Event')}</Link>
-    </Button>
+    <Button
+      className="h-9"
+      nativeButton={false}
+      render={<Link href="/admin/events/calendar">{t('Create Event')}</Link>}
+    />
   )
 
   const hasAppliedFilters =
@@ -1092,11 +1097,13 @@ export default function AdminEventsTable({
   const filtersButton = (
     <div className="relative">
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button type="button" variant="outline" size="icon" onClick={handleOpenFilters} aria-label={t('Filters')}>
-            <FilterIcon className="size-4" />
-          </Button>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <Button type="button" variant="outline" size="icon" onClick={handleOpenFilters} aria-label={t('Filters')}>
+              <FilterIcon className="size-4" />
+            </Button>
+          }
+        />
         <TooltipContent>{t('Filters')}</TooltipContent>
       </Tooltip>
       {hasAppliedFilters && (
@@ -1181,8 +1188,13 @@ export default function AdminEventsTable({
       <div className="grid gap-2">
         <Label>{t('Attention')}</Label>
         <Select
+          items={{
+            all: t('All events'),
+            'missing-sports-id': t('Events without a sports ID'),
+            'past-due-unresolved': t('Events awaiting resolution'),
+          }}
           value={draftAttention}
-          onValueChange={(value) => setDraftAttention(value as AdminEventAttentionFilter | 'all')}
+          onValueChange={(value) => value !== null && setDraftAttention(value as AdminEventAttentionFilter | 'all')}
         >
           <SelectTrigger className="h-10 w-full">
             <SelectValue placeholder={t('Attention')} />
@@ -1203,7 +1215,14 @@ export default function AdminEventsTable({
 
       <div className="grid gap-2">
         <Label>{t('Main category')}</Label>
-        <Select value={draftMainCategorySlug} onValueChange={setDraftMainCategorySlug}>
+        <Select
+          items={[
+            { label: t('All categories'), value: 'all' },
+            ...mainCategoryOptions.map((category) => ({ label: category.name, value: category.slug })),
+          ]}
+          value={draftMainCategorySlug}
+          onValueChange={(value) => value !== null && setDraftMainCategorySlug(value)}
+        >
           <SelectTrigger className="h-10 w-full">
             <SelectValue placeholder={t('Main category')} />
           </SelectTrigger>
@@ -1223,7 +1242,14 @@ export default function AdminEventsTable({
       {creatorOptions.length > 1 && (
         <div className="grid gap-2">
           <Label>{t('Creator')}</Label>
-          <Select value={draftCreator} onValueChange={setDraftCreator}>
+          <Select
+            items={[
+              { label: t('All creators'), value: 'all' },
+              ...creatorOptions.map((creatorWallet) => ({ label: creatorWallet, value: creatorWallet })),
+            ]}
+            value={draftCreator}
+            onValueChange={(value) => value !== null && setDraftCreator(value)}
+          >
             <SelectTrigger className="h-10 w-full">
               <SelectValue placeholder={t('Creator')} />
             </SelectTrigger>
@@ -1248,7 +1274,14 @@ export default function AdminEventsTable({
       {seriesOptions.length > 0 && (
         <div className="grid gap-2">
           <Label>{t('Series')}</Label>
-          <Select value={draftSeriesSlug} onValueChange={setDraftSeriesSlug}>
+          <Select
+            items={[
+              { label: t('All series'), value: 'all' },
+              ...seriesOptions.map((seriesOption) => ({ label: seriesOption, value: seriesOption })),
+            ]}
+            value={draftSeriesSlug}
+            onValueChange={(value) => value !== null && setDraftSeriesSlug(value)}
+          >
             <SelectTrigger className="h-10 w-full">
               <SelectValue placeholder={t('Series')} />
             </SelectTrigger>
@@ -1444,11 +1477,7 @@ export default function AdminEventsTable({
               onClick={() => void searchSportsSourceCandidates()}
               disabled={isSavingSportsFinal || isSearchingSportsSource}
             >
-              {isSearchingSportsSource ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : (
-                <SearchIcon className="size-4" />
-              )}
+              {isSearchingSportsSource ? <Spinner className="size-4" /> : <SearchIcon className="size-4" />}
               <span>{t('Search')}</span>
             </Button>
             {hasSportsSourceIdentity ? (

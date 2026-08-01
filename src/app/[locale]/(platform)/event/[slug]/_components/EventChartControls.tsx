@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from 'react'
 import { FileTextIcon, ListTodoIcon, SettingsIcon, ShuffleIcon, XIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useState } from 'react'
-import { toast } from 'sonner'
 
 import type { TimeRange } from '@/app/[locale]/(platform)/event/[slug]/_hooks/useEventPriceHistory'
 import type { SeriesConfig } from '@/types/PredictionChartTypes'
@@ -16,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
+import { toast } from '@/components/ui/toast'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useOutcomeLabel } from '@/hooks/useOutcomeLabel'
 import { cn } from '@/lib/utils'
@@ -94,36 +95,46 @@ export default function EventChartControls({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1">
-      <div className="flex flex-wrap items-center justify-start gap-1 text-xs font-semibold">
+      <ToggleGroup
+        aria-label={t('Time range')}
+        value={[activeTimeRange]}
+        onValueChange={(values) => {
+          const nextRange = values[0] as TimeRange | undefined
+          if (nextRange) {
+            onTimeRangeChange(nextRange)
+          }
+        }}
+        className="flex flex-wrap items-center justify-start text-xs font-semibold"
+      >
         {timeRanges.map((range) => (
-          <button
+          <ToggleGroupItem
             key={range}
-            type="button"
+            value={range}
             className={cn(
-              'relative px-2 py-1 transition-colors',
+              'relative h-auto min-w-0 px-2 py-1 transition-colors hover:bg-transparent data-pressed:bg-transparent data-pressed:text-foreground',
               activeTimeRange === range ? 'text-foreground' : 'text-muted-foreground',
             )}
             data-range={range}
-            onClick={() => onTimeRangeChange(range)}
-            aria-pressed={activeTimeRange === range}
           >
             {range}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
 
       {hasMarketSelector && (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                `flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground`,
-              )}
-              aria-label={t('Show outcomes on chart')}
-            >
-              <ListTodoIcon className="size-4" />
-            </button>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className={cn(
+                  `flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground`,
+                )}
+                aria-label={t('Show outcomes on chart')}
+              />
+            }
+          >
+            <ListTodoIcon className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="bottom"
@@ -143,8 +154,8 @@ export default function EventChartControls({
               {selectedOptions.map((option) => (
                 <DropdownMenuItem
                   key={option.key}
-                  onSelect={(event) => {
-                    event.preventDefault()
+                  closeOnClick={false}
+                  onClick={() => {
                     if (selectedMarketIds.length <= 1) {
                       toast.info(
                         <span className="text-base font-semibold text-muted-foreground">
@@ -171,11 +182,13 @@ export default function EventChartControls({
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex size-4 items-center justify-center text-muted-foreground">
-                          <XIcon className="size-3.5" />
-                        </span>
-                      </TooltipTrigger>
+                      <TooltipTrigger
+                        render={
+                          <span className="inline-flex size-4 items-center justify-center text-muted-foreground">
+                            <XIcon className="size-3.5" />
+                          </span>
+                        }
+                      />
                       <TooltipContent side="top">{t('Remove')}</TooltipContent>
                     </Tooltip>
                     <span className="truncate text-foreground">{option.name}</span>
@@ -189,8 +202,8 @@ export default function EventChartControls({
                 return (
                   <DropdownMenuItem
                     key={option.key}
-                    onSelect={(event) => {
-                      event.preventDefault()
+                    closeOnClick={false}
+                    onClick={() => {
                       if (isDisabled) {
                         return
                       }
@@ -218,18 +231,20 @@ export default function EventChartControls({
 
       {showOutcomeSwitch && (
         <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                `flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground`,
-              )}
-              onClick={onShuffle}
-              aria-label={t('Switch to {outcome}', { outcome: normalizeOutcomeLabel(oppositeOutcomeLabel) })}
-            >
-              <ShuffleIcon className="size-4" />
-            </button>
-          </TooltipTrigger>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                className={cn(
+                  `flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground`,
+                )}
+                onClick={onShuffle}
+                aria-label={t('Switch to {outcome}', { outcome: normalizeOutcomeLabel(oppositeOutcomeLabel) })}
+              >
+                <ShuffleIcon className="size-4" />
+              </button>
+            }
+          />
           <TooltipContent side="left">
             {t('Switch to {outcome}', { outcome: normalizeOutcomeLabel(oppositeOutcomeLabel) })}
           </TooltipContent>
@@ -237,16 +252,18 @@ export default function EventChartControls({
       )}
 
       <DropdownMenu open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              `flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground`,
-            )}
-            aria-label={t('Chart settings')}
-          >
-            <SettingsIcon className="size-4" />
-          </button>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              className={cn(
+                `flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground`,
+              )}
+              aria-label={t('Chart settings')}
+            />
+          }
+        >
+          <SettingsIcon className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent
           side="bottom"

@@ -207,31 +207,33 @@ export default function EventLiveSeriesChartHeader({
       </div>
       {shouldShowCountdown ? (
         <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="mr-[-4px] ml-auto grid shrink-0 justify-items-end gap-1 text-left sm:mr-[-6px]"
-            >
-              <div className="flex items-end gap-0.5 min-[360px]:gap-1 sm:gap-3">
-                {visibleCountdownUnits.map(({ unit, value }) => (
-                  <div key={unit} className="min-w-6 text-right min-[360px]:min-w-8 sm:min-w-11">
-                    <div
-                      className={cn(
-                        'text-[16px] leading-none font-semibold tabular-nums min-[360px]:text-[18px] sm:text-[22px]',
-                        isTradingWindowActive ? 'text-red-500' : 'text-muted-foreground',
-                      )}
-                    >
-                      <RollingValue value={String(Math.max(0, Math.floor(value))).padStart(2, '0')} />
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                className="mr-[-4px] ml-auto grid shrink-0 justify-items-end gap-1 text-left sm:mr-[-6px]"
+              >
+                <div className="flex items-end gap-0.5 min-[360px]:gap-1 sm:gap-3">
+                  {visibleCountdownUnits.map(({ unit, value }) => (
+                    <div key={unit} className="min-w-6 text-right min-[360px]:min-w-8 sm:min-w-11">
+                      <div
+                        className={cn(
+                          'text-[16px] leading-none font-semibold tabular-nums min-[360px]:text-[18px] sm:text-[22px]',
+                          isTradingWindowActive ? 'text-red-500' : 'text-muted-foreground',
+                        )}
+                      >
+                        <RollingValue value={String(Math.max(0, Math.floor(value))).padStart(2, '0')} />
+                      </div>
+                      <div className="mt-1 text-[8px] font-semibold tracking-[0.08em] text-muted-foreground uppercase min-[360px]:text-[9px] sm:text-2xs">
+                        {countdownLabel(unit, value)}
+                      </div>
                     </div>
-                    <div className="mt-1 text-[8px] font-semibold tracking-[0.08em] text-muted-foreground uppercase min-[360px]:text-[9px] sm:text-2xs">
-                      {countdownLabel(unit, value)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <span className="sr-only">{status}</span>
-            </button>
-          </TooltipTrigger>
+                  ))}
+                </div>
+                <span className="sr-only">{status}</span>
+              </button>
+            }
+          />
           <TooltipContent align="end" className="w-72 rounded-xl p-3 text-left">
             <div className="grid gap-2.5">
               <div className="flex items-center justify-between gap-3">
@@ -276,20 +278,21 @@ export default function EventLiveSeriesChartHeader({
         </Tooltip>
       ) : liveMarketHref ? (
         <Button
-          asChild
           size={isMobile ? 'sm' : 'default'}
           variant="outline"
           className={cn(
             'shrink-0 rounded-full font-semibold shadow-none',
             isMobile ? 'mr-[-4px] ml-auto gap-1 text-xs' : 'ml-auto has-[>svg]:px-3.5',
           )}
-        >
-          <Link href={liveMarketHref}>
-            <LiveIndicator pingOpacity={0.4} />
-            <span>{liveMarketLabel}</span>
-            <ChevronRightIcon className={isMobile ? 'size-3.5' : 'size-4'} />
-          </Link>
-        </Button>
+          nativeButton={false}
+          render={
+            <Link href={liveMarketHref}>
+              <LiveIndicator pingOpacity={0.4} />
+              <span>{liveMarketLabel}</span>
+              <ChevronRightIcon className={isMobile ? 'size-3.5' : 'size-4'} />
+            </Link>
+          }
+        />
       ) : isEventClosed ? (
         <div className="mr-[-4px] ml-auto sm:mr-[-6px]">{countdownEndedLogo}</div>
       ) : null}

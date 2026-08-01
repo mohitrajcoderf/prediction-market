@@ -6,6 +6,7 @@ import type { MarketStatusFilter, SortOption } from '@/app/[locale]/(platform)/p
 import SearchSortToolbar, { SearchSortSelect } from '@/app/[locale]/(platform)/_components/SearchSortToolbar'
 import { Button } from '@/components/ui/button'
 import { SelectItem } from '@/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
@@ -39,32 +40,52 @@ export default function PublicPositionsFilters({
       onSearchChange={onSearchChange}
       controls={
         <>
-          <div
-            role="group"
+          <ToggleGroup
             aria-label={t('Positions')}
+            value={[marketStatusFilter]}
+            onValueChange={(values) => {
+              const nextStatus = values[0] as MarketStatusFilter | undefined
+              if (nextStatus) {
+                onMarketStatusChange(nextStatus)
+              }
+            }}
             className="flex shrink-0 items-center rounded-md bg-muted p-0.5"
           >
             {(['active', 'closed'] as const).map((status) => (
-              <Button
+              <ToggleGroupItem
                 key={status}
-                type="button"
                 variant="ghost"
                 size="sm"
-                aria-pressed={marketStatusFilter === status}
                 className={cn(
                   'h-8 rounded-sm px-2.5 text-xs shadow-none sm:px-3 sm:text-sm',
+                  'data-pressed:bg-background data-pressed:text-foreground data-pressed:shadow-xs',
                   marketStatusFilter === status
                     ? 'bg-background text-foreground shadow-xs hover:bg-background'
                     : 'text-muted-foreground',
                 )}
-                onClick={() => onMarketStatusChange(status)}
+                value={status}
               >
                 {status === 'active' ? t('Active') : t('Closed')}
-              </Button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
 
           <SearchSortSelect
+            items={[
+              {
+                label: marketStatusFilter === 'closed' ? t('Amount Won') : t('Current value'),
+                value: 'currentValue',
+              },
+              { label: t('Trade'), value: 'trade' },
+              { label: t('Profit & Loss %'), value: 'pnlPercent' },
+              { label: t('Profit & Loss $'), value: 'pnlValue' },
+              { label: t('Shares'), value: 'shares' },
+              { label: t('Alphabetically'), value: 'alpha' },
+              { label: t('Ending soon'), value: 'endingSoon' },
+              { label: t('Payout'), value: 'payout' },
+              { label: t('Latest Price'), value: 'latestPrice' },
+              { label: t('Average cost per share'), value: 'avgCost' },
+            ]}
             value={sortBy}
             ariaLabel={t('Sort positions')}
             icon={<ArrowDownNarrowWideIcon className="size-4 text-muted-foreground" />}
@@ -88,18 +109,20 @@ export default function PublicPositionsFilters({
       action={
         showMergeButton && (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="rounded-md dark:bg-transparent"
-                onClick={onMergeClick}
-                aria-label={t('Merge positions')}
-              >
-                <MergeIcon className="size-4 rotate-90" />
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="rounded-md dark:bg-transparent"
+                  onClick={onMergeClick}
+                  aria-label={t('Merge positions')}
+                >
+                  <MergeIcon className="size-4 rotate-90" />
+                </Button>
+              }
+            />
             <TooltipContent>{t('Merge')}</TooltipContent>
           </Tooltip>
         )

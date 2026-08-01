@@ -17,7 +17,14 @@ import {
   resolveLiveSeriesPillLabel,
   resolveLiveSeriesPillVisibility,
 } from '@/app/[locale]/(platform)/event/[slug]/_utils/eventSeriesPillLabels'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLinkItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Link } from '@/i18n/navigation'
 import { resolveEventPagePath } from '@/lib/events-routing'
@@ -282,7 +289,7 @@ function ResolutionTimeTooltipRows({ event }: { event: EventSeriesEntry }) {
   )
 }
 
-function SeriesEventCountdownTooltipContent({
+function SeriesEventCountdownHoverCardContent({
   event,
   nowTimestamp,
   showLiveBadge,
@@ -300,7 +307,7 @@ function SeriesEventCountdownTooltipContent({
     : '--'
 
   return (
-    <TooltipContent align="center" className="w-72 rounded-xl p-3 text-left">
+    <HoverCardContent align="center" className="w-72 rounded-xl p-3 text-left">
       <div className="grid gap-2.5">
         <div className={cn('flex items-center gap-3', showLiveBadge ? 'justify-between' : 'justify-start')}>
           {showLiveBadge && (
@@ -321,7 +328,7 @@ function SeriesEventCountdownTooltipContent({
         <div className="text-xs text-muted-foreground">Resolution time</div>
         <ResolutionTimeTooltipRows event={event} />
       </div>
-    </TooltipContent>
+    </HoverCardContent>
   )
 }
 
@@ -389,17 +396,19 @@ export default function EventSeriesPills({
                   'text-foreground',
                 )}
               >
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      'inline-flex h-8 items-center gap-1.5 rounded-full pr-1 pl-2.5 transition-colors',
-                      'hover:bg-muted/85',
-                    )}
-                  >
-                    <span>Past</span>
-                    <ChevronDownIcon className={cn('size-4 transition-transform', isPastMenuOpen && 'rotate-180')} />
-                  </button>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      type="button"
+                      className={cn(
+                        'inline-flex h-8 items-center gap-1.5 rounded-full pr-1 pl-2.5 transition-colors',
+                        'hover:bg-muted/85',
+                      )}
+                    />
+                  }
+                >
+                  <span>Past</span>
+                  <ChevronDownIcon className={cn('size-4 transition-transform', isPastMenuOpen && 'rotate-180')} />
                 </DropdownMenuTrigger>
 
                 {pastResultBadges.length > 0 && (
@@ -414,26 +423,28 @@ export default function EventSeriesPills({
                           : getSeriesEventLabel(event)
                         return (
                           <Tooltip key={event.id}>
-                            <TooltipTrigger asChild>
-                              <Link
-                                href={resolveEventPagePath(event)}
-                                aria-label={resultLabel}
-                                className={cn(
-                                  `inline-flex size-4 items-center justify-center rounded-full transition-transform duration-150`,
-                                  'hover:scale-105',
-                                  shouldDim && 'opacity-55',
-                                  isUp ? 'bg-emerald-500' : 'bg-red-500',
-                                )}
-                                onMouseEnter={() => setHoveredPastBadgeId(event.id)}
-                                onMouseLeave={() => setHoveredPastBadgeId(null)}
-                              >
-                                <TriangleIcon
-                                  className={cn('size-2.5 text-white', !isUp && 'rotate-180')}
-                                  fill="currentColor"
-                                  stroke="none"
-                                />
-                              </Link>
-                            </TooltipTrigger>
+                            <TooltipTrigger
+                              render={
+                                <Link
+                                  href={resolveEventPagePath(event)}
+                                  aria-label={resultLabel}
+                                  className={cn(
+                                    `inline-flex size-4 items-center justify-center rounded-full transition-transform duration-150`,
+                                    'hover:scale-105',
+                                    shouldDim && 'opacity-55',
+                                    isUp ? 'bg-emerald-500' : 'bg-red-500',
+                                  )}
+                                  onMouseEnter={() => setHoveredPastBadgeId(event.id)}
+                                  onMouseLeave={() => setHoveredPastBadgeId(null)}
+                                >
+                                  <TriangleIcon
+                                    className={cn('size-2.5 text-white', !isUp && 'rotate-180')}
+                                    fill="currentColor"
+                                    stroke="none"
+                                  />
+                                </Link>
+                              }
+                            />
                             <TooltipContent align="center" className="px-2 py-1 text-xs">
                               {resultLabel}
                             </TooltipContent>
@@ -452,7 +463,7 @@ export default function EventSeriesPills({
               >
                 {pastResolvedEvents.map((event) => {
                   const isCurrentEvent = event.slug === currentEventSlug
-                  const etTimeLabel = `${getSeriesEventPillTimeLabel(event, 'America/New_York', isShortCadence)} ET`
+                  const etTimeLabel = `${getSeriesEventPillTimeLabel(event, 'America/New_York', true, true)} ET`
 
                   if (isCurrentEvent) {
                     return (
@@ -475,14 +486,16 @@ export default function EventSeriesPills({
                   }
 
                   return (
-                    <DropdownMenuItem key={event.id} asChild className="cursor-pointer rounded-md py-1.5 text-xs">
-                      <Link href={resolveEventPagePath(event)} className="flex w-full items-center gap-2">
-                        <GavelIcon className="size-3.5 shrink-0 text-foreground" />
-                        <span className="text-xs font-semibold text-foreground">{etTimeLabel}</span>
-                        <span className="size-1 rounded-full bg-foreground/70" />
-                        <span className="text-xs text-muted-foreground">{getSeriesEventLabel(event)}</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    <DropdownMenuLinkItem
+                      key={event.id}
+                      render={<Link href={resolveEventPagePath(event)} className="flex w-full items-center gap-2" />}
+                      className="cursor-pointer rounded-md py-1.5 text-xs"
+                    >
+                      <GavelIcon className="size-3.5 shrink-0 text-foreground" />
+                      <span className="text-xs font-semibold text-foreground">{etTimeLabel}</span>
+                      <span className="size-1 rounded-full bg-foreground/70" />
+                      <span className="text-xs text-muted-foreground">{getSeriesEventLabel(event)}</span>
+                    </DropdownMenuLinkItem>
                   )
                 })}
               </DropdownMenuContent>
@@ -515,58 +528,62 @@ export default function EventSeriesPills({
               })
 
               return (
-                <Tooltip key={event.id}>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href={resolveEventPagePath(event)}
-                      className={cn(
-                        `inline-flex h-8 cursor-pointer items-center rounded-full px-3 text-xs leading-none font-semibold transition-colors`,
-                        isCurrentEvent
-                          ? 'bg-foreground text-background hover:bg-foreground/90'
-                          : 'bg-muted text-foreground hover:bg-muted/80',
-                        isTradingNow && 'gap-1.5',
-                      )}
-                    >
-                      {isTradingNow && (
-                        <span className="relative inline-flex size-2 items-center justify-center">
-                          <span
-                            className={cn(
-                              'absolute inset-0 m-auto inline-flex size-2 animate-ping rounded-full',
-                              'bg-red-500/50',
-                            )}
-                          />
-                          <span className="relative inline-flex size-1.5 rounded-full bg-red-500" />
-                        </span>
-                      )}
-                      <span>{pillLabel}</span>
-                    </Link>
-                  </TooltipTrigger>
-                  <SeriesEventCountdownTooltipContent
+                <HoverCard key={event.id}>
+                  <HoverCardTrigger
+                    render={
+                      <Link
+                        href={resolveEventPagePath(event)}
+                        className={cn(
+                          `inline-flex h-8 cursor-pointer items-center rounded-full px-3 text-xs leading-none font-semibold transition-colors`,
+                          isCurrentEvent
+                            ? 'bg-foreground text-background hover:bg-foreground/90'
+                            : 'bg-muted text-foreground hover:bg-muted/80',
+                          isTradingNow && 'gap-1.5',
+                        )}
+                      >
+                        {isTradingNow && (
+                          <span className="relative inline-flex size-2 items-center justify-center">
+                            <span
+                              className={cn(
+                                'absolute inset-0 m-auto inline-flex size-2 animate-ping rounded-full',
+                                'bg-red-500/50',
+                              )}
+                            />
+                            <span className="relative inline-flex size-1.5 rounded-full bg-red-500" />
+                          </span>
+                        )}
+                        <span>{pillLabel}</span>
+                      </Link>
+                    }
+                  />
+                  <SeriesEventCountdownHoverCardContent
                     event={event}
                     nowTimestamp={nowTimestamp}
                     showLiveBadge={isTradingNow}
                   />
-                </Tooltip>
+                </HoverCard>
               )
             })}
 
           {hasSeriesNavigation && overflowEvents.length > 0 && (
             <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen} modal={false}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    `inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs leading-none font-semibold text-foreground transition-colors hover:bg-muted/80`,
-                  )}
-                >
-                  <span>{t('More')}</span>
-                  <ChevronDownIcon className={cn('size-4 transition-transform', isMoreMenuOpen && 'rotate-180')} />
-                </button>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn(
+                      `inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs leading-none font-semibold text-foreground transition-colors hover:bg-muted/80`,
+                    )}
+                  />
+                }
+              >
+                <span>{t('More')}</span>
+                <ChevronDownIcon className={cn('size-4 transition-transform', isMoreMenuOpen && 'rotate-180')} />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 side="top"
                 align="end"
-                className="z-20 max-h-80 min-w-48 overflow-y-auto rounded-lg p-0.5"
+                className="z-20 max-h-80 min-w-fit overflow-y-auto rounded-lg p-0.5"
               >
                 {overflowEvents.map((event) => {
                   const eventTimestamp = getSeriesEventTimestamp(event)
@@ -574,17 +591,17 @@ export default function EventSeriesPills({
                   const etTimeLabel = `${getSeriesEventPillTimeLabel(event, 'America/New_York', true, true)} ET`
 
                   return (
-                    <DropdownMenuItem key={event.id} asChild className="cursor-pointer rounded-md py-1.5 text-xs">
-                      <Link href={resolveEventPagePath(event)} className="flex w-full items-center gap-2">
-                        <span className="w-[5.5rem] shrink-0 font-semibold text-foreground tabular-nums">
-                          {etTimeLabel}
-                        </span>
-                        <span className="size-1 rounded-full bg-foreground/70" />
-                        <span className="text-muted-foreground">
-                          {isTodayInEt ? t('Today') : getSeriesEventLabel(event)}
-                        </span>
-                      </Link>
-                    </DropdownMenuItem>
+                    <DropdownMenuLinkItem
+                      key={event.id}
+                      render={<Link href={resolveEventPagePath(event)} className="flex w-full items-center gap-2" />}
+                      className="cursor-pointer rounded-md py-1.5 text-xs"
+                    >
+                      <span className="shrink-0 font-semibold text-foreground tabular-nums">{etTimeLabel}</span>
+                      <span className="size-1 rounded-full bg-foreground/70" />
+                      <span className="text-muted-foreground">
+                        {isTodayInEt ? t('Today') : getSeriesEventLabel(event)}
+                      </span>
+                    </DropdownMenuLinkItem>
                   )
                 })}
               </DropdownMenuContent>
@@ -602,16 +619,18 @@ export default function EventSeriesPills({
       <div className="flex flex-wrap items-center gap-2">
         {hasSeriesNavigation && shouldShowPastDropdown && (
           <DropdownMenu open={isPastMenuOpen} onOpenChange={setIsPastMenuOpen} modal={false}>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  `inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs leading-none font-semibold text-foreground transition-colors hover:bg-muted/80`,
-                )}
-              >
-                <span>Past</span>
-                <ChevronDownIcon className={cn('size-4 transition-transform', isPastMenuOpen && 'rotate-180')} />
-              </button>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className={cn(
+                    `inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs leading-none font-semibold text-foreground transition-colors hover:bg-muted/80`,
+                  )}
+                />
+              }
+            >
+              <span>Past</span>
+              <ChevronDownIcon className={cn('size-4 transition-transform', isPastMenuOpen && 'rotate-180')} />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
@@ -640,12 +659,14 @@ export default function EventSeriesPills({
                 }
 
                 return (
-                  <DropdownMenuItem key={event.id} asChild className="cursor-pointer py-1.5 text-xs font-medium">
-                    <Link href={resolveEventPagePath(event)} className="flex w-full items-center gap-2">
-                      <GavelIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span>{getSeriesEventLabel(event)}</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  <DropdownMenuLinkItem
+                    key={event.id}
+                    render={<Link href={resolveEventPagePath(event)} className="flex w-full items-center gap-2" />}
+                    className="cursor-pointer py-1.5 text-xs font-medium"
+                  >
+                    <GavelIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span>{getSeriesEventLabel(event)}</span>
+                  </DropdownMenuLinkItem>
                 )
               })}
             </DropdownMenuContent>

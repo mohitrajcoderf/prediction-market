@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRightIcon, FuelIcon, InfoIcon, Loader2Icon } from 'lucide-react'
+import { ChevronRightIcon, FuelIcon, InfoIcon } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 
@@ -13,6 +13,7 @@ import WalletTransferSummary, {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDirectUsdcDepositExecution } from '@/hooks/useDirectUsdcDepositExecution'
 import { useLiFiExecution } from '@/hooks/useLiFiExecution'
@@ -178,9 +179,7 @@ function WalletConfirmStep({
               <span className="flex items-center gap-1">
                 Network cost
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <InfoIcon className="size-3" />
-                  </TooltipTrigger>
+                  <TooltipTrigger render={<InfoIcon className="size-3" />} />
                   <TooltipContent>
                     <div className="space-y-1 text-xs text-foreground">
                       <div className="flex items-center justify-between gap-4">
@@ -232,7 +231,7 @@ function WalletConfirmStep({
           }
         }}
       >
-        {(isLoadingQuote || isSubmitting || isExecuting) && <Loader2Icon className="size-4 animate-spin" />}
+        {(isLoadingQuote || isSubmitting || isExecuting) && <Spinner className="size-4" />}
         {isSubmitting && 'Confirm transaction in your wallet'}
         {!isSubmitting && status === 'quote' && 'Preparing your quote...'}
         {!isSubmitting && status === 'gas' && 'Estimating gas...'}

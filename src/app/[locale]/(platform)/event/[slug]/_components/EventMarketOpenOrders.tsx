@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react'
 import { useExtracted, useLocale } from 'next-intl'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
 
 import type { Event, UserOpenOrder } from '@/types'
 
@@ -33,6 +32,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useOpenOrdersCacheInvalidation } from '@/hooks/useOpenOrdersCacheInvalidation'
@@ -458,18 +458,20 @@ function OpenOrderRow({ order, onCancel, isCancelling }: OpenOrderRowProps) {
       <td className="p-2 sm:px-3">
         <div className="flex justify-end">
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                aria-label={t('Cancel {side} order for {outcome}', { side: sideLabel, outcome: outcomeLabel })}
-                variant="outline"
-                size="sm"
-                disabled={isCancelling}
-                onClick={() => onCancel(order)}
-              >
-                <XIcon className="size-4" />
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  aria-label={t('Cancel {side} order for {outcome}', { side: sideLabel, outcome: outcomeLabel })}
+                  variant="outline"
+                  size="sm"
+                  disabled={isCancelling}
+                  onClick={() => onCancel(order)}
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              }
+            />
             <TooltipContent side="top">{t('Cancel')}</TooltipContent>
           </Tooltip>
         </div>

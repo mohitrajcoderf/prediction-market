@@ -3,7 +3,7 @@
 import type { InfiniteData } from '@tanstack/react-query'
 
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLinkIcon, Loader2Icon } from 'lucide-react'
+import { ExternalLinkIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -16,6 +16,7 @@ import ProfileLink from '@/components/ProfileLink'
 import ProfileLinkSkeleton from '@/components/ProfileLinkSkeleton'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { useOutcomeLabel } from '@/hooks/useOutcomeLabel'
 import { MICRO_UNIT } from '@/lib/constants'
 import { EVENT_ACTIVITY_PAGE_SIZE, fetchEventTrades } from '@/lib/data-api/trades'
@@ -458,7 +459,17 @@ export default function EventActivity({ event }: EventActivityProps) {
     <div className="mt-2 grid gap-6">
       <div className="flex flex-row items-center gap-2">
         {isMultiMarket && (
-          <Select value={resolvedActivityMarketFilter} onValueChange={handleActivityMarketFilterChange}>
+          <Select
+            items={[
+              { label: t('All'), value: ALL_ACTIVITY_MARKETS_VALUE },
+              ...event.markets.map((market) => ({
+                label: getMarketDisplayLabel(market),
+                value: market.condition_id,
+              })),
+            ]}
+            value={resolvedActivityMarketFilter}
+            onValueChange={(value) => value !== null && handleActivityMarketFilterChange(value)}
+          >
             <SelectTrigger className="w-full sm:w-40 md:w-44 dark:bg-transparent">
               <SelectValue />
             </SelectTrigger>
@@ -473,11 +484,9 @@ export default function EventActivity({ event }: EventActivityProps) {
           </Select>
         )}
 
-        <Select value={minAmountFilter} onValueChange={handleMinAmountFilterChange}>
+        <Select value={minAmountFilter} onValueChange={(value) => value !== null && handleMinAmountFilterChange(value)}>
           <SelectTrigger className="w-full sm:w-auto dark:bg-transparent">
-            <SelectValue asChild>
-              <span className="line-clamp-1">{minAmountFilterLabel}</span>
-            </SelectValue>
+            <SelectValue render={<span className="line-clamp-1" />}>{minAmountFilterLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">{t('None')}</SelectItem>
@@ -581,7 +590,7 @@ export default function EventActivity({ event }: EventActivityProps) {
 
           {isFetchingNextPage && (
             <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
-              <Loader2Icon className="size-4 animate-spin" />
+              <Spinner className="size-4" />
               {t('Loading more...')}
             </div>
           )}

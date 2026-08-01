@@ -6,7 +6,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { BotIcon, TriangleAlertIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
 import { useSignTypedData } from 'wagmi'
 
 import type { PortfolioUserOpenOrder } from '@/app/[locale]/(platform)/portfolio/_types/PortfolioOpenOrdersTypes'
@@ -19,6 +18,8 @@ import { buildUserOpenOrdersQueryKey } from '@/app/[locale]/(platform)/event/[sl
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Slider } from '@/components/ui/slider'
+import { toast } from '@/components/ui/toast'
 import { useAffiliateOrderMetadata } from '@/hooks/useAffiliateOrderMetadata'
 import { useAppKit } from '@/hooks/useAppKit'
 import { DEPOSIT_WALLET_BALANCE_QUERY_KEY, useBalance } from '@/hooks/useBalance'
@@ -483,19 +484,17 @@ export default function EventProvideLiquidityDialog({
         </div>
 
         <div className="space-y-2">
-          <input
-            id="liquidity-chance"
-            type="range"
+          <Slider
             min={1}
             max={99}
             step={1}
             value={centerPriceCents}
             disabled={isSubmitting}
-            aria-label={t('Starting chance')}
-            className={cn(
-              `h-2 w-full cursor-pointer appearance-none rounded-full disabled:cursor-not-allowed disabled:opacity-60 [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:bg-foreground [&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-foreground`,
-            )}
-            style={{
+            thumbAriaLabel={t('Starting chance')}
+            trackClassName="h-2 bg-transparent"
+            indicatorClassName="hidden"
+            thumbClassName="border-2 border-background bg-foreground"
+            trackStyle={{
               background: `
                 linear-gradient(
                   to right,
@@ -506,7 +505,7 @@ export default function EventProvideLiquidityDialog({
                 )
               `,
             }}
-            onChange={(event) => setCenterPriceCents(Number(event.currentTarget.value))}
+            onValueChange={setCenterPriceCents}
           />
           <div className="grid grid-cols-3 text-[11px] font-semibold">
             <span className="truncate text-yes">
@@ -520,11 +519,9 @@ export default function EventProvideLiquidityDialog({
         </div>
 
         <Accordion
-          type="single"
-          collapsible
-          value={isPreviewOpen ? 'order-book-preview' : ''}
+          value={isPreviewOpen ? ['order-book-preview'] : []}
           className="rounded-xl border"
-          onValueChange={(value) => setIsPreviewOpen(value === 'order-book-preview')}
+          onValueChange={(value) => setIsPreviewOpen(value[0] === 'order-book-preview')}
         >
           <AccordionItem value="order-book-preview" className="border-0">
             <AccordionTrigger className="cursor-pointer px-3 py-2.5 text-xs font-semibold hover:no-underline">

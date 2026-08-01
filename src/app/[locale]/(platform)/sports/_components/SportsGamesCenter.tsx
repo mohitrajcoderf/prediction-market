@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -523,26 +524,28 @@ export default function SportsGamesCenter({
             <div className="pointer-events-auto relative z-30 flex shrink-0 items-start gap-2 sm:items-center">
               {canWatchLivestream && (
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      data-sports-card-control="true"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        openLivestream({
-                          url: card.event.livestream_url!,
-                          title: card.event.title || card.title,
-                        })
-                      }}
-                      className={cn(
-                        `inline-flex size-8 items-center justify-center rounded-lg bg-secondary/80 text-foreground transition-colors`,
-                        'hover:bg-secondary hover:ring-1 hover:ring-border',
-                      )}
-                      aria-label="Watch Livestream"
-                    >
-                      <RadioIcon className="size-3.5" />
-                    </button>
-                  </TooltipTrigger>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        data-sports-card-control="true"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openLivestream({
+                            url: card.event.livestream_url!,
+                            title: card.event.title || card.title,
+                          })
+                        }}
+                        className={cn(
+                          `inline-flex size-8 items-center justify-center rounded-lg bg-secondary/80 text-foreground transition-colors`,
+                          'hover:bg-secondary hover:ring-1 hover:ring-border',
+                        )}
+                        aria-label="Watch Livestream"
+                      >
+                        <RadioIcon className="size-3.5" />
+                      </button>
+                    }
+                  />
                   <TooltipContent side="top">Watch Livestream</TooltipContent>
                 </Tooltip>
               )}
@@ -915,7 +918,15 @@ export default function SportsGamesCenter({
   }
 
   const weekSelect = (
-    <Select value={effectiveSelectedWeek} onValueChange={setSelectedWeek} disabled={weekOptions.length === 0}>
+    <Select
+      items={[
+        ...weekOptions.map((week) => ({ label: `Week ${week}`, value: String(week) })),
+        { label: 'All weeks', value: 'all' },
+      ]}
+      value={effectiveSelectedWeek}
+      onValueChange={(value) => value !== null && setSelectedWeek(value)}
+      disabled={weekOptions.length === 0}
+    >
       <SelectTrigger
         className={cn(
           `h-12 w-fit min-w-0 cursor-pointer rounded-full border-0 bg-card px-3.5 pr-2 text-sm font-semibold text-foreground shadow-none hover:bg-card data-[size=default]:h-12! dark:bg-card dark:hover:bg-card`,
@@ -923,7 +934,7 @@ export default function SportsGamesCenter({
       >
         <SelectValue placeholder="Week" />
       </SelectTrigger>
-      <SelectContent position="popper" align="end" className="min-w-36 p-1">
+      <SelectContent alignItemWithTrigger={false} align="end" className="min-w-36 p-1">
         {weekOptions.map((week) => (
           <SelectItem key={week} value={String(week)} className="my-0.5 cursor-pointer rounded-sm py-1.5 pl-2">
             {`Week ${week}`}
@@ -1016,16 +1027,18 @@ export default function SportsGamesCenter({
   function renderSettingsMenu() {
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Odds format settings"
-            className={headerIconButtonClass}
-          >
-            <SettingsIcon className="size-4" />
-          </Button>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Odds format settings"
+              className={headerIconButtonClass}
+            />
+          }
+        >
+          <SettingsIcon className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent
           side="bottom"
@@ -1033,34 +1046,36 @@ export default function SportsGamesCenter({
           sideOffset={8}
           className="w-64 border border-border bg-background p-1 text-foreground shadow-xl"
         >
-          <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground">
-            Odds Format
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {ODDS_FORMAT_OPTIONS.map((option) => (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground">
+              Odds Format
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {ODDS_FORMAT_OPTIONS.map((option) => (
+              <DropdownMenuItem
+                key={option.value}
+                className="cursor-pointer rounded-sm px-2 py-1.5 text-sm text-foreground"
+                closeOnClick={false}
+                onClick={() => {
+                  setOddsFormat(option.value)
+                }}
+              >
+                <span>{option.label}</span>
+                {oddsFormat === option.value && <CheckIcon className="ml-auto size-3.5 text-primary" />}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
             <DropdownMenuItem
-              key={option.value}
-              className="cursor-pointer rounded-sm px-2 py-1.5 text-sm text-foreground"
-              onSelect={(event) => {
-                event.preventDefault()
-                setOddsFormat(option.value)
+              className="cursor-pointer rounded-sm px-2 py-1.5 text-sm whitespace-nowrap text-foreground"
+              closeOnClick={false}
+              onClick={() => {
+                setShowSpreadsAndTotals((current) => !current)
               }}
             >
-              <span>{option.label}</span>
-              {oddsFormat === option.value && <CheckIcon className="ml-auto size-3.5 text-primary" />}
+              <span>Show Spreads + Totals</span>
+              {showSpreadsAndTotals && <CheckIcon className="ml-auto size-3.5 text-primary" />}
             </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="cursor-pointer rounded-sm px-2 py-1.5 text-sm whitespace-nowrap text-foreground"
-            onSelect={(event) => {
-              event.preventDefault()
-              setShowSpreadsAndTotals((current) => !current)
-            }}
-          >
-            <span>Show Spreads + Totals</span>
-            {showSpreadsAndTotals && <CheckIcon className="ml-auto size-3.5 text-primary" />}
-          </DropdownMenuItem>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     )

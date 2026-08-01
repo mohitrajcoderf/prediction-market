@@ -4,7 +4,6 @@ import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useState } from 'react'
 import QRCode from 'react-qr-code'
-import { toast } from 'sonner'
 
 import type { User } from '@/types'
 
@@ -12,6 +11,7 @@ import { enableTwoFactorAction } from '@/app/[locale]/(platform)/settings/_actio
 import { Button } from '@/components/ui/button'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
+import { toast } from '@/components/ui/toast'
 import { useClipboard } from '@/hooks/useClipboard'
 import { authClient } from '@/lib/auth-client'
 import { useUser } from '@/stores/useUser'
@@ -289,9 +289,12 @@ export default function SettingsTwoFactorAuthContent({ user }: { user: User }) {
           <div className="mt-6 grid gap-6">
             <div className="flex flex-col items-center gap-2 text-center">
               <p className="text-sm font-medium text-muted-foreground">{t('On mobile?')}</p>
-              <Button asChild variant="outline" className="h-auto rounded-sm px-4 py-3 text-center whitespace-normal">
-                <a href={state.setupData.totpURI}>{t('Open authenticator app')}</a>
-              </Button>
+              <Button
+                variant="outline"
+                className="h-auto rounded-sm px-4 py-3 text-center whitespace-normal"
+                nativeButton={false}
+                render={<a href={state.setupData.totpURI}>{t('Open authenticator app')}</a>}
+              />
             </div>
 
             <div className="flex justify-center">

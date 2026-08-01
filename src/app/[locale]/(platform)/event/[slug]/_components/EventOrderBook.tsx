@@ -1,10 +1,9 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { AlignVerticalSpaceAroundIcon, ArrowLeftRightIcon, DropletsIcon, Loader2Icon } from 'lucide-react'
+import { AlignVerticalSpaceAroundIcon, ArrowLeftRightIcon, DropletsIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
 
 import type {
   EventOrderBookProps,
@@ -29,6 +28,8 @@ import {
   getRoundedCents,
   microToUnit,
 } from '@/app/[locale]/(platform)/event/[slug]/_utils/EventOrderBookUtils'
+import { Spinner } from '@/components/ui/spinner'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCurrentTimestamp } from '@/hooks/useCurrentTimestamp'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -379,7 +380,7 @@ export default function EventOrderBook({
   if (isLoadingSummaries) {
     return (
       <div className="flex items-center justify-center gap-2 px-4 py-6 text-sm text-muted-foreground">
-        <Loader2Icon className="size-4 animate-spin" />
+        <Spinner className="size-4" />
         {t('Loading order book...')}
       </div>
     )
@@ -400,34 +401,38 @@ export default function EventOrderBook({
             <span className={orderBookHeaderLabelClass}>{displayTradeLabel}</span>
             {onToggleOutcome && toggleOutcomeTooltip && (
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      className={cn(
+                        `inline-flex size-6 translate-y-[-1.5px] items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground`,
+                      )}
+                      onClick={onToggleOutcome}
+                      aria-label={toggleOutcomeTooltip}
+                    >
+                      <ArrowLeftRightIcon className="size-3.5" />
+                    </button>
+                  }
+                />
+                <TooltipContent side="right">{toggleOutcomeTooltip}</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger
+                render={
                   <button
                     type="button"
                     className={cn(
                       `inline-flex size-6 translate-y-[-1.5px] items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground`,
                     )}
-                    onClick={onToggleOutcome}
-                    aria-label={toggleOutcomeTooltip}
+                    onClick={() => recenterOrderBook()}
+                    aria-label={t('Recenter order book')}
                   >
-                    <ArrowLeftRightIcon className="size-3.5" />
+                    <AlignVerticalSpaceAroundIcon className="size-4" />
                   </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{toggleOutcomeTooltip}</TooltipContent>
-              </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    `inline-flex size-6 translate-y-[-1.5px] items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground`,
-                  )}
-                  onClick={() => recenterOrderBook()}
-                  aria-label={t('Recenter order book')}
-                >
-                  <AlignVerticalSpaceAroundIcon className="size-4" />
-                </button>
-              </TooltipTrigger>
+                }
+              />
               <TooltipContent side="right">{t('Recenter Book (Shift + C)')}</TooltipContent>
             </Tooltip>
           </div>

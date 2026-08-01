@@ -4,7 +4,6 @@ import { ChevronDownIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react'
 import { useExtracted, useLocale } from 'next-intl'
 import Image from 'next/image'
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
 
 import type { LimitExpirationOption } from '@/lib/orders/expiration'
 import type { OrderSide } from '@/types'
@@ -16,6 +15,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { NumberInput } from '@/components/ui/number-input'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useBalance } from '@/hooks/useBalance'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -330,7 +330,7 @@ export default function EventOrderPanelLimitControls({
           )}
         </div>
 
-        <NumberInput value={limitPriceNumber} onChange={updateLimitPrice} />
+        <NumberInput value={limitPriceNumber} onChange={updateLimitPrice} ariaLabel={t('Limit Price')} />
       </div>
 
       <div className="my-4 border-b border-border" />
@@ -405,16 +405,18 @@ export default function EventOrderPanelLimitControls({
         {matchingSharesLabel && (
           <div className="mt-2 ml-auto flex w-1/2 justify-end">
             <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={cn(
-                    `inline-flex items-center gap-1 rounded-md bg-yes/15 p-1 text-xs font-semibold text-yes-foreground transition-colors`,
-                  )}
-                >
-                  <InfoIcon className="size-3" aria-hidden />
-                  <span>{t('{shares} matching', { shares: matchingSharesLabel })}</span>
-                </span>
-              </TooltipTrigger>
+              <TooltipTrigger
+                render={
+                  <span
+                    className={cn(
+                      `inline-flex items-center gap-1 rounded-md bg-yes/15 p-1 text-xs font-semibold text-yes-foreground transition-colors`,
+                    )}
+                  >
+                    <InfoIcon className="size-3" aria-hidden />
+                    <span>{t('{shares} matching', { shares: matchingSharesLabel })}</span>
+                  </span>
+                }
+              />
               <TooltipContent className="max-w-48" side="bottom">
                 {t('{shares} shares from this order will be executed immediatelly', { shares: matchingSharesLabel })}
               </TooltipContent>
@@ -429,33 +431,35 @@ export default function EventOrderPanelLimitControls({
         <div className="flex items-center justify-between text-sm font-semibold text-muted-foreground">
           <span>{t('Expires')}</span>
           <DropdownMenu open={isExpirationMenuOpen} onOpenChange={setIsExpirationMenuOpen} modal={false}>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  `group flex max-w-40 cursor-pointer items-center gap-1 bg-transparent text-sm font-semibold text-muted-foreground transition-colors duration-200 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none`,
-                  { 'text-foreground': isExpirationMenuOpen },
-                )}
-                aria-haspopup="menu"
-                aria-expanded={isExpirationMenuOpen}
-              >
-                <span className="truncate text-right">{selectedExpirationLabel}</span>
-                <ChevronDownIcon
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
                   className={cn(
-                    `size-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180`,
+                    `group flex max-w-40 cursor-pointer items-center gap-1 bg-transparent text-sm font-semibold text-muted-foreground transition-colors duration-200 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none`,
                     { 'text-foreground': isExpirationMenuOpen },
                   )}
+                  aria-haspopup="menu"
+                  aria-expanded={isExpirationMenuOpen}
                 />
-              </button>
+              }
+            >
+              <span className="truncate text-right">{selectedExpirationLabel}</span>
+              <ChevronDownIcon
+                className={cn(
+                  `size-4 text-muted-foreground transition-transform duration-200 group-data-popup-open:rotate-180`,
+                  { 'text-foreground': isExpirationMenuOpen },
+                )}
+              />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-fit" portalled={false}>
+            <DropdownMenuContent align="end" className="min-w-fit">
               {expirationOptions.map(({ value, label }) => {
                 const isSelected = value === limitExpirationOption
                 return (
                   <DropdownMenuItem
                     key={value}
                     className={cn('cursor-pointer', { 'font-semibold text-foreground': isSelected })}
-                    onSelect={() => handleExpirationOptionSelect(value)}
+                    onClick={() => handleExpirationOptionSelect(value)}
                   >
                     <span>{label}</span>
                   </DropdownMenuItem>
@@ -480,11 +484,13 @@ export default function EventOrderPanelLimitControls({
             <div className="flex items-center justify-between text-lg font-bold text-foreground">
               <span>{t('Total')}</span>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="border-b border-dotted border-primary font-semibold text-primary">
-                    {safeTotalValueLabel}
-                  </span>
-                </TooltipTrigger>
+                <TooltipTrigger
+                  render={
+                    <span className="border-b border-dotted border-primary font-semibold text-primary">
+                      {safeTotalValueLabel}
+                    </span>
+                  }
+                />
                 <TooltipContent side="top" className="w-52 p-3">
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-3">

@@ -111,16 +111,17 @@ vi.mock('@/app/[locale]/(platform)/sports/_components/_sports-games-center/Sport
 }))
 
 vi.mock('@/components/ui/button', () => ({
-  Button: function MockButton(props: any) {
-    return <button {...props} />
+  Button: function MockButton({ nativeButton: _nativeButton, render, ...props }: any) {
+    return render ?? <button {...props} />
   },
 }))
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: any) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect, ...props }: any) => (
-    <button type="button" onClick={onSelect} {...props}>
+  DropdownMenuGroup: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuItem: ({ children, closeOnClick: _closeOnClick, onClick, ...props }: any) => (
+    <button type="button" onClick={onClick} {...props}>
       {children}
     </button>
   ),
@@ -144,7 +145,7 @@ vi.mock('@/components/ui/select', () => ({
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: any) => <>{children}</>,
   TooltipContent: ({ children }: any) => <div>{children}</div>,
-  TooltipTrigger: ({ children }: any) => <>{children}</>,
+  TooltipTrigger: ({ children, render }: any) => render ?? <>{children}</>,
 }))
 
 function createSportsCard() {

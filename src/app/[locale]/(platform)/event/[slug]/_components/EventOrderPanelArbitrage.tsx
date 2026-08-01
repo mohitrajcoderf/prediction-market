@@ -6,7 +6,6 @@ import { useExtracted } from 'next-intl'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatedCounter } from 'react-animated-counter'
-import { toast } from 'sonner'
 import { useAccount, useConnections } from 'wagmi'
 
 import type { EventOrderPanelOutcomeSelectedAccent } from '@/app/[locale]/(platform)/event/[slug]/_components/EventOrderPanelOutcomeButton'
@@ -27,6 +26,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { toast } from '@/components/ui/toast'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useHasHydrated } from '@/hooks/useHasHydrated'
 import { useKuestFeeRate } from '@/hooks/useKuestFeeRate'
@@ -818,11 +819,13 @@ function EventOrderPanelPolymarketArbitrage({
   const submitButtonWithStatus =
     !hasMarketOpportunity && submissionStep === 0 ? (
       <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="block" tabIndex={0}>
-            {submitButton}
-          </div>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <div className="block" tabIndex={0}>
+              {submitButton}
+            </div>
+          }
+        />
         <TooltipContent side="top" className="max-w-72 text-center">
           {t('Arbitrage is available when opposite outcomes cost less than their combined $1 payout, including fees.')}
         </TooltipContent>
@@ -843,34 +846,38 @@ function EventOrderPanelPolymarketArbitrage({
       connectButton
     ) : isEmbeddedSiteWallet ? (
       <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="block" tabIndex={0}>
-            <EventOrderPanelSubmitButton
-              type="button"
-              isLoading={false}
-              isDisabled
-              onClick={() => {}}
-              label={t('Polymarket wallet unavailable')}
-            />
-          </div>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <div className="block" tabIndex={0}>
+              <EventOrderPanelSubmitButton
+                type="button"
+                isLoading={false}
+                isDisabled
+                onClick={() => {}}
+                label={t('Polymarket wallet unavailable')}
+              />
+            </div>
+          }
+        />
         <TooltipContent side="top" className="max-w-72 text-center">
           {t('When disabled, users can only trade arbitrage when they use the same wallet on both sites.')}
         </TooltipContent>
       </Tooltip>
     ) : sameWalletUnavailable ? (
       <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="block" tabIndex={0}>
-            <EventOrderPanelSubmitButton
-              type="button"
-              isLoading={false}
-              isDisabled
-              onClick={() => {}}
-              label={t('Polymarket wallet unavailable')}
-            />
-          </div>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <div className="block" tabIndex={0}>
+              <EventOrderPanelSubmitButton
+                type="button"
+                isLoading={false}
+                isDisabled
+                onClick={() => {}}
+                label={t('Polymarket wallet unavailable')}
+              />
+            </div>
+          }
+        />
         <TooltipContent side="top" className="max-w-72 text-center">
           {t('This wallet does not have an active Polymarket deposit wallet. Use the same wallet on Polymarket first.')}
         </TooltipContent>
@@ -989,12 +996,14 @@ function EventOrderPanelPolymarketArbitrage({
                     <span>—</span>
                   )}
                   <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" className="text-muted-foreground hover:text-foreground">
-                        <InfoIcon className="size-4" />
-                        <span className="sr-only">{t('Execution risk')}</span>
-                      </button>
-                    </TooltipTrigger>
+                    <TooltipTrigger
+                      render={
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <InfoIcon className="size-4" />
+                          <span className="sr-only">{t('Execution risk')}</span>
+                        </button>
+                      }
+                    />
                     <TooltipContent side="top" align="end" className="max-w-64 text-xs">
                       {t(
                         'Estimated profit for each matched pair of shares, after fees, based on current executable prices.',
@@ -1065,11 +1074,13 @@ function EventOrderPanelPolymarketArbitrage({
                   <span key={preset.key}>{button}</span>
                 ) : (
                   <Tooltip key={preset.key}>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex" tabIndex={0}>
-                        {button}
-                      </span>
-                    </TooltipTrigger>
+                    <TooltipTrigger
+                      render={
+                        <span className="inline-flex" tabIndex={0}>
+                          {button}
+                        </span>
+                      }
+                    />
                     <TooltipContent side="top">{percentageTooltipLabel}</TooltipContent>
                   </Tooltip>
                 )
@@ -1087,15 +1098,17 @@ function EventOrderPanelPolymarketArbitrage({
                       {formatCurrency(selectedQuote?.profit ?? 0)}
                     </span>
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex size-4 items-center justify-center hover:text-foreground"
-                        >
-                          <InfoIcon className="size-3" />
-                          <span className="sr-only">{t('Est. profit')}</span>
-                        </button>
-                      </TooltipTrigger>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="inline-flex size-4 items-center justify-center hover:text-foreground"
+                          >
+                            <InfoIcon className="size-3" />
+                            <span className="sr-only">{t('Est. profit')}</span>
+                          </button>
+                        }
+                      />
                       <TooltipContent
                         side="top"
                         className="w-64 overflow-hidden rounded-2xl border border-border bg-background p-0"
@@ -1266,19 +1279,27 @@ export default function EventOrderPanelArbitrage(props: EventOrderPanelArbitrage
   return (
     <div className="grid gap-4">
       {hasPolymarketMarket && (
-        <div className="grid grid-cols-2 border-b" role="group" aria-label={t('Arbitrage strategy')}>
+        <ToggleGroup
+          className="grid w-full grid-cols-2 border-b"
+          aria-label={t('Arbitrage strategy')}
+          value={[activeStrategy]}
+          onValueChange={(values) => {
+            const nextStrategy = values[0]
+            if (nextStrategy === 'outcome' || nextStrategy === 'polymarket') {
+              setStrategy(nextStrategy)
+            }
+          }}
+        >
           {strategyOptions.map((option) => (
-            <button
+            <ToggleGroupItem
               key={option.value}
-              type="button"
-              aria-pressed={activeStrategy === option.value}
+              value={option.value}
               disabled={props.isSubmitting}
               className={cn(
-                'relative px-3 py-2.5 text-sm font-semibold transition-colors',
+                'relative h-auto min-w-0 px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-transparent data-pressed:bg-transparent data-pressed:text-foreground',
                 activeStrategy === option.value ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                 props.isSubmitting && 'cursor-not-allowed opacity-60',
               )}
-              onClick={() => setStrategy(option.value)}
             >
               {option.label}
               <span
@@ -1288,9 +1309,9 @@ export default function EventOrderPanelArbitrage(props: EventOrderPanelArbitrage
                   activeStrategy === option.value ? 'bg-foreground' : 'bg-transparent',
                 )}
               />
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       )}
 
       {activeStrategy === 'polymarket' ? (

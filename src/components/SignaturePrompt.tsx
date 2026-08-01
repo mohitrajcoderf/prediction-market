@@ -1,13 +1,14 @@
 'use client'
 
 import { useWalletInfo } from '@reown/appkit/react'
-import { Loader2Icon, WalletIcon, XIcon } from 'lucide-react'
+import { WalletIcon, XIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import Image from 'next/image'
 import { useState } from 'react'
 
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
+import { Spinner } from '@/components/ui/spinner'
 import { useAppKit } from '@/hooks/useAppKit'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { cn } from '@/lib/utils'
@@ -52,7 +53,7 @@ export function SignaturePrompt() {
 
       <div className="space-y-2 text-center">
         <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
-          <Loader2Icon className="size-4 animate-spin text-primary" />
+          <Spinner className="size-4 text-primary" />
           <span>{t('Waiting for approval')}</span>
         </div>
         <p className="max-w-64 text-sm/relaxed text-muted-foreground">{resolvedDescription}</p>
@@ -63,11 +64,7 @@ export function SignaturePrompt() {
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={handleOpenChange} dismissible={false}>
-        <DrawerContent
-          className={cn(`w-full border border-border/80 bg-background px-6 pt-4 pb-6 shadow-2xl`)}
-          onEscapeKeyDown={(event) => event.preventDefault()}
-          onInteractOutside={(event) => event.preventDefault()}
-        >
+        <DrawerContent className={cn(`w-full border border-border/80 bg-background px-6 pt-4 pb-6 shadow-2xl`)}>
           <button
             type="button"
             className={cn(
@@ -90,14 +87,23 @@ export function SignaturePrompt() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={open}
+      disablePointerDismissal
+      onOpenChange={(nextOpen, eventDetails) => {
+        if (!nextOpen && eventDetails.reason === 'escape-key') {
+          eventDetails.cancel()
+          return
+        }
+
+        handleOpenChange(nextOpen)
+      }}
+    >
       <DialogContent
         showCloseButton={false}
         className={cn(
           `w-[320px] max-w-[calc(100%-2rem)] rounded-2xl border border-border/80 bg-background p-6 shadow-2xl sm:w-[340px]`,
         )}
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
       >
         <DialogClose
           className={cn(

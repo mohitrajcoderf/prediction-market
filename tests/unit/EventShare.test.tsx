@@ -18,8 +18,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/components/ui/button', () => ({
-  Button: function MockButton({ children, ...props }: any) {
-    return <button {...props}>{children}</button>
+  Button: function MockButton({ children, nativeButton: _nativeButton, render, ...props }: any) {
+    return render ?? <button {...props}>{children}</button>
   },
 }))
 
@@ -30,9 +30,9 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuContent: function MockDropdownMenuContent({ children }: any) {
     return <div>{children}</div>
   },
-  DropdownMenuItem: function MockDropdownMenuItem({ children, onSelect, ...props }: any) {
+  DropdownMenuItem: function MockDropdownMenuItem({ children, closeOnClick: _closeOnClick, onClick, ...props }: any) {
     return (
-      <button {...props} onClick={() => onSelect?.({ preventDefault() {} })}>
+      <button {...props} onClick={onClick}>
         {children}
       </button>
     )

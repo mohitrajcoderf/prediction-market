@@ -64,7 +64,7 @@ vi.mock('@/hooks/useSignaturePromptRunner', () => ({
   }),
 }))
 
-vi.mock('sonner', () => ({
+vi.mock('@/components/ui/toast', () => ({
   toast: {
     success: (...args: unknown[]) => mocks.toastSuccess(...args),
     error: (...args: unknown[]) => mocks.toastError(...args),
@@ -72,7 +72,8 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  Button: ({ children, nativeButton: _nativeButton, render, ...props }: any) =>
+    render ?? <button {...props}>{children}</button>,
 }))
 
 vi.mock('@/components/ui/dialog', () => ({

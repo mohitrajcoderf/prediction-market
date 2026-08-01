@@ -4,7 +4,6 @@ import { FileBracesIcon, RefreshCwIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import Image from 'next/image'
 import { useActionState, useCallback, useMemo, useState } from 'react'
-import { toast } from 'sonner'
 
 import type { KuestSupportPosition } from '@/lib/admin-support-settings'
 import type { CustomJavascriptCodeConfig, CustomJavascriptCodeDisablePage } from '@/lib/custom-javascript-code'
@@ -20,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { clearLocationHash, useLocationHash } from '@/hooks/useLocationHash'
 import {
   MAX_CUSTOM_JAVASCRIPT_CODE_NAME_LENGTH,
@@ -344,8 +344,14 @@ function AdminIntegrationsFormInner(props: AdminIntegrationsFormProps) {
               <Label htmlFor="integration-openrouter-model">{t('Preferred OpenRouter model')}</Label>
               <div className="flex gap-2">
                 <Select
+                  items={[
+                    { label: t('Let OpenRouter decide'), value: AUTOMATIC_MODEL_VALUE },
+                    ...openRouterModelOptions.map((model) => ({ label: model.label, value: model.id })),
+                  ]}
                   value={openRouterModel || AUTOMATIC_MODEL_VALUE}
-                  onValueChange={(value) => setOpenRouterModel(value === AUTOMATIC_MODEL_VALUE ? '' : value)}
+                  onValueChange={(value) =>
+                    value !== null && setOpenRouterModel(value === AUTOMATIC_MODEL_VALUE ? '' : value)
+                  }
                   disabled={isPending || (!props.openRouterSettings.isApiKeyConfigured && !openRouterApiKey.trim())}
                 >
                   <SelectTrigger id="integration-openrouter-model" className="h-12! w-full">
@@ -457,8 +463,9 @@ function AdminIntegrationsFormInner(props: AdminIntegrationsFormProps) {
             <div className="grid gap-2">
               <Label htmlFor="integration-sumsub-enforcement">{t('Enforcement')}</Label>
               <Select
+                items={{ disabled: t('Disabled'), observe: t('Observe only'), required: t('Required') }}
                 value={sumsubEnforcement}
-                onValueChange={(value) => setSumsubEnforcement(value as SumsubEnforcement)}
+                onValueChange={(value) => value !== null && setSumsubEnforcement(value as SumsubEnforcement)}
                 disabled={isPending}
               >
                 <SelectTrigger id="integration-sumsub-enforcement">

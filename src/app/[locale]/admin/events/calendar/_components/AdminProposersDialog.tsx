@@ -4,10 +4,9 @@ import type { ReactNode } from 'react'
 import type { Address, Hash, Hex } from 'viem'
 
 import { useAppKitAccount, useAppKitNetworkCore, useAppKitProvider } from '@reown/appkit/react'
-import { CheckCircle2Icon, CircleIcon, Loader2Icon, PlusIcon, UserCheckIcon, XIcon } from 'lucide-react'
+import { CheckCircle2Icon, CircleIcon, PlusIcon, UserCheckIcon, XIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react'
-import { toast } from 'sonner'
 import {
   createWalletClient,
   custom,
@@ -32,7 +31,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSignaturePromptRunner } from '@/hooks/useSignaturePromptRunner'
 import { DEFAULT_CHAIN_ID } from '@/lib/network'
@@ -326,7 +327,7 @@ function AdminProposersDialogShell({
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange} fixed repositionInputs={false}>
+      <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent className="max-h-[90dvh] w-full overflow-hidden bg-background px-4 pt-4 pb-6">
           <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden">
             <DrawerHeader className="mt-4 shrink-0 space-y-2 p-0 text-left">
@@ -1004,8 +1005,12 @@ export default function AdminProposersDialog({
             </div>
           </div>
           <Select
+            items={creatorOptions.map((creator) => ({
+              label: `${creator.displayName} · ${creator.shortAddress}${creator.hasServerSigner ? ` · ${t('server')}` : ''}`,
+              value: creator.address,
+            }))}
             value={selectedCreator ?? undefined}
-            onValueChange={handleCreatorChange}
+            onValueChange={(value) => value !== null && handleCreatorChange(value)}
             disabled={isLoading || isMutating || lockCreatorSelection}
           >
             <SelectTrigger className="w-full">
@@ -1033,7 +1038,7 @@ export default function AdminProposersDialog({
               )}
             >
               <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2Icon className="size-4 animate-spin" />
+                <Spinner className="size-4" />
                 {t('Loading creators...')}
               </div>
             </div>
@@ -1119,7 +1124,7 @@ export default function AdminProposersDialog({
                     disabled={actionDisabled}
                   >
                     {isMutating ? (
-                      <Loader2Icon className="size-4 animate-spin" />
+                      <Spinner className="size-4" />
                     ) : status?.whitelistAddress ? (
                       <PlusIcon className="size-4" />
                     ) : (

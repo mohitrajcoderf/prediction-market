@@ -5,10 +5,10 @@ import { CheckIcon, CopyIcon, TriangleAlertIcon } from 'lucide-react'
 import { useExtracted } from 'next-intl'
 import Image from 'next/image'
 import { useState } from 'react'
-import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
+import { toast } from '@/components/ui/toast'
 import { usePublicRuntimeConfig } from '@/hooks/usePublicRuntimeConfig'
 
 const UPSTREAM_COMMITS_URL = 'https://api.github.com/repos/kuestcom/prediction-market/commits?per_page=1'
@@ -124,35 +124,47 @@ function ForkSyncWarning({ currentCommitSha, forkRepositoryUrl, upstreamCommitSh
   const syncForkLabel = t('Sync fork')
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          aria-label={title}
-          size="sm"
-          className="text-amber-500 dark:text-amber-400"
-        >
-          <TriangleAlertIcon aria-hidden />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top" align="start" className="w-80 max-w-[calc(100vw-2rem)] p-3 text-left font-normal">
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        delay={0}
+        closeDelay={150}
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            aria-label={title}
+            size="sm"
+            className="text-amber-500 dark:text-amber-400"
+          >
+            <TriangleAlertIcon aria-hidden />
+          </Button>
+        }
+      />
+      <PopoverContent side="top" align="start" className="w-80 max-w-[calc(100vw-2rem)] p-3 text-left font-normal">
         <div className="space-y-3">
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-foreground">{title}</p>
-            <p className="text-xs text-muted-foreground">
+            <PopoverTitle className="text-sm font-semibold text-foreground">{title}</PopoverTitle>
+            <PopoverDescription className="text-xs text-muted-foreground">
               {t('Your fork is not synced with the latest Kuest version. Open your project on GitHub and click')}{' '}
               {forkRepositoryUrl ? (
-                <Button asChild variant="link" size="sm" className="h-6 px-0 align-baseline text-xs font-bold">
-                  <a href={forkRepositoryUrl} target="_blank" rel="noopener noreferrer">
-                    {syncForkLabel}
-                  </a>
-                </Button>
+                <a
+                  href={forkRepositoryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({
+                    variant: 'link',
+                    size: 'sm',
+                    className: 'h-6 px-0 align-baseline text-xs font-bold',
+                  })}
+                >
+                  {syncForkLabel}
+                </a>
               ) : (
                 <strong className="font-bold text-foreground">{syncForkLabel}</strong>
               )}
               .
-            </p>
+            </PopoverDescription>
           </div>
           <div className="overflow-hidden rounded-md border bg-muted">
             <Image
@@ -173,8 +185,8 @@ function ForkSyncWarning({ currentCommitSha, forkRepositoryUrl, upstreamCommitSh
             </dd>
           </dl>
         </div>
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   )
 }
 

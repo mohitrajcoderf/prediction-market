@@ -5,11 +5,11 @@ import type { Route } from 'next'
 import { useExtracted } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { toast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
 import { authClient } from '@/lib/auth-client'
 import { signOutAndRedirect } from '@/lib/logout'
@@ -158,17 +158,22 @@ export default function TwoFactorClient({ next }: { next?: string | null }) {
           <Button type="submit" disabled={code.length !== CODE_LENGTH || isVerifying}>
             {isVerifying ? t('Verifying...') : t('Verify')}
           </Button>
-          <Button variant="link" className="text-muted-foreground" asChild>
-            <Link
-              href={'/' as Route}
-              onClick={(event) => {
-                event.preventDefault()
-                void handleAbort()
-              }}
-            >
-              {t('or go to home')}
-            </Link>
-          </Button>
+          <Button
+            variant="link"
+            className="text-muted-foreground"
+            nativeButton={false}
+            render={
+              <Link
+                href={'/' as Route}
+                onClick={(event) => {
+                  event.preventDefault()
+                  void handleAbort()
+                }}
+              >
+                {t('or go to home')}
+              </Link>
+            }
+          />
         </form>
       </CardContent>
     </Card>

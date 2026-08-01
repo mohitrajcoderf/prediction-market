@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import ProfileActivityTooltipCard from '@/components/ProfileActivityTooltipCard'
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { Link } from '@/i18n/navigation'
 import { getAvatarPlaceholderStyle, shouldUseAvatarPlaceholder } from '@/lib/avatar'
 import { fetchProfileLinkStats } from '@/lib/data-api/profile-link-stats'
@@ -224,7 +224,7 @@ export default function ProfileLink({
   )
 
   return (
-    <Tooltip onOpenChange={setIsOpen}>
+    <HoverCard onOpenChange={setIsOpen}>
       <div
         className={cn(
           'flex gap-3',
@@ -243,7 +243,7 @@ export default function ProfileLink({
           {isInline ? (
             <div className="flex min-w-0 items-start gap-2">
               <div className={inlineRowClassName}>
-                <TooltipTrigger asChild>{triggerContent}</TooltipTrigger>
+                <HoverCardTrigger render={triggerContent} />
                 {usernameAddon ? <span className="shrink-0">{usernameAddon}</span> : null}
                 {inlineBody ?? null}
               </div>
@@ -258,30 +258,32 @@ export default function ProfileLink({
             <div className="flex min-w-0 items-center gap-3">
               {tooltipTrigger === 'avatar-username' ? (
                 <>
-                  <TooltipTrigger asChild>{avatarNode}</TooltipTrigger>
+                  <HoverCardTrigger render={avatarNode} />
                   <div className="flex min-w-0 flex-col gap-1">
                     <div className="flex min-w-0 items-center gap-2">
-                      <TooltipTrigger asChild>{usernameNode}</TooltipTrigger>
+                      <HoverCardTrigger render={usernameNode} />
                       {stackedHeaderAddon}
                     </div>
                     {children ?? null}
                   </div>
                 </>
               ) : (
-                <TooltipTrigger asChild>
-                  <div className="flex min-w-0 items-center gap-3">
-                    {avatarNode}
-                    <div className="flex min-w-0 flex-col gap-1">
-                      {stackedHeader}
-                      {children ?? null}
+                <HoverCardTrigger
+                  render={
+                    <div className="flex min-w-0 items-center gap-3">
+                      {avatarNode}
+                      <div className="flex min-w-0 flex-col gap-1">
+                        {stackedHeader}
+                        {children ?? null}
+                      </div>
                     </div>
-                  </div>
-                </TooltipTrigger>
+                  }
+                />
               )}
             </div>
           ) : (
             <div className="flex min-w-0 items-center gap-1">
-              <TooltipTrigger asChild>{triggerContent}</TooltipTrigger>
+              <HoverCardTrigger render={triggerContent} />
               {usernameAddon ? <span className="shrink-0">{usernameAddon}</span> : null}
               {dateLabel}
             </div>
@@ -292,7 +294,7 @@ export default function ProfileLink({
           <div className="ml-2 flex shrink-0 items-center text-right">{trailing}</div>
         ) : null}
       </div>
-      <TooltipContent
+      <HoverCardContent
         side="top"
         align="start"
         className="max-w-[90vw] border-none bg-transparent p-0 text-popover-foreground shadow-none md:max-w-96"
@@ -308,7 +310,7 @@ export default function ProfileLink({
           stats={tooltipStats}
           isLoading={isTooltipLoading}
         />
-      </TooltipContent>
-    </Tooltip>
+      </HoverCardContent>
+    </HoverCard>
   )
 }
