@@ -1,4 +1,4 @@
-import { and, asc, inArray, isNull, ne, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { createHash } from 'node:crypto'
 
 import type { NonDefaultLocale } from '@/i18n/locales'
@@ -15,14 +15,16 @@ import {
 } from '@/lib/db/schema'
 import { db } from '@/lib/drizzle'
 import { buildCronJsonResponse, handleCronRoute } from '@/lib/sync/cron-route'
-import { resolveTranslationSourceFingerprint } from '@/lib/translations/batch'
+import { resolveDeterministicTranslation, resolveTranslationSourceFingerprint } from '@/lib/translations/batch'
 import { isNonDefaultLocale, parseEventJobPayload, parseTagJobPayload } from '@/lib/translations/jobs'
 
 export const maxDuration = 30
 
 const ENQUEUE_TIME_LIMIT_MS = 20_000
+const DETERMINISTIC_TIME_LIMIT_MS = 8_000
+const DETERMINISTIC_SCAN_ROW_LIMIT = 500
 const DISCOVERY_SCAN_PAGE_SIZE = 100
-const DISCOVERY_ENQUEUE_TARGET = 50
+const DISCOVERY_ENQUEUE_TARGET = 120
 const JOB_UPSERT_BATCH_SIZE = 100
 const DEFAULT_MAX_ATTEMPTS = 5
 const EVENT_TITLE_TRANSLATION_JOB_TYPE = 'translate_event_title'
@@ -113,7 +115,16 @@ interface TranslationDiscoveryConfig<TSource> {
   buildJobRow: (input: BuildTranslationJobRowInput<TSource>) => JobUpsertRow
 }
 
+interface DeterministicEventTranslationRow {
+  event_id: string
+  locale: NonDefaultLocale
+  title: string
+  source_hash: string
+  is_manual: false
+}
+
 interface TranslationEnqueueStats {
+  completedDeterministicEventTranslations: number
   enqueuedEventJobs: number
   enqueuedTagJobs: number
   timeLimitReached: boolean
@@ -121,6 +132,7 @@ interface TranslationEnqueueStats {
 
 export async function GET(request: Request) {
   const stats: TranslationEnqueueStats = {
+    completedDeterministicEventTranslations: 0,
     enqueuedEventJobs: 0,
     enqueuedTagJobs: 0,
     timeLimitReached: false,
@@ -136,15 +148,6 @@ export async function GET(request: Request) {
         loadEnabledLocales(),
       ])
       const enabledTranslationLocales = enabledLocales.filter(isNonDefaultLocale)
-
-      if (!openRouterSettings.configured || !openRouterSettings.apiKey) {
-        return {
-          success: true,
-          skipped: true,
-          reason: 'OpenRouter is not configured.',
-          ...stats,
-        }
-      }
 
       if (!automaticTranslationsEnabled) {
         return {
@@ -165,6 +168,21 @@ export async function GET(request: Request) {
       }
 
       const startedAt = Date.now()
+      stats.completedDeterministicEventTranslations = await syncDeterministicEventTranslations(
+        startedAt,
+        enabledTranslationLocales,
+      )
+      stats.timeLimitReached = isTimeLimitReached(startedAt)
+
+      if (!openRouterSettings.configured || !openRouterSettings.apiKey) {
+        return {
+          success: true,
+          skippedProvider: true,
+          reason: 'OpenRouter is not configured.',
+          ...stats,
+        }
+      }
+
       const providerSignature = buildProviderSignature(openRouterSettings.model)
       const discovery = await enqueueMissingOrOutdatedTranslationJobs(
         startedAt,
@@ -199,6 +217,10 @@ function buildSourceHash(value: string) {
 
 function isTimeLimitReached(startedAtMs: number) {
   return Date.now() - startedAtMs >= ENQUEUE_TIME_LIMIT_MS
+}
+
+function isDeterministicLimitReached(startedAtMs: number, scannedRows: number) {
+  return Date.now() - startedAtMs >= DETERMINISTIC_TIME_LIMIT_MS || scannedRows >= DETERMINISTIC_SCAN_ROW_LIMIT
 }
 
 function buildProviderSignature(model: string | undefined) {
@@ -376,6 +398,87 @@ function buildTagTranslationMetaMap(rows: TagTranslationMetaRow[]): Map<string, 
   }
 
   return map
+}
+
+async function upsertDeterministicEventTranslations(rows: DeterministicEventTranslationRow[]) {
+  let completed = 0
+
+  for (let index = 0; index < rows.length; index += JOB_UPSERT_BATCH_SIZE) {
+    const affectedRows = await db
+      .insert(eventTranslationsTable)
+      .values(rows.slice(index, index + JOB_UPSERT_BATCH_SIZE))
+      .onConflictDoUpdate({
+        target: [eventTranslationsTable.event_id, eventTranslationsTable.locale],
+        set: {
+          title: sql`excluded.title`,
+          source_hash: sql`excluded.source_hash`,
+          is_manual: false,
+        },
+        setWhere: eq(eventTranslationsTable.is_manual, false),
+      })
+      .returning({ event_id: eventTranslationsTable.event_id })
+
+    completed += affectedRows.length
+  }
+
+  return completed
+}
+
+async function syncDeterministicEventTranslations(startedAtMs: number, locales: NonDefaultLocale[]) {
+  let completed = 0
+  let offset = 0
+
+  while (!isDeterministicLimitReached(startedAtMs, offset)) {
+    const page = await loadEventSourcePage(offset)
+    if (page.rawCount === 0) {
+      break
+    }
+
+    const metaMap = await loadEventTranslationMetaMap(page.sourceRows, locales)
+    const rows: DeterministicEventTranslationRow[] = []
+
+    for (const sourceRow of page.sourceRows) {
+      for (const locale of locales) {
+        const title = resolveDeterministicTranslation({
+          locale,
+          sourceLabel: 'event title',
+          sourceText: sourceRow.title,
+        })
+        if (!title) {
+          continue
+        }
+
+        const sourceHash = buildSourceHash(
+          resolveTranslationSourceFingerprint({
+            locale,
+            sourceLabel: 'event title',
+            sourceText: sourceRow.title,
+          }),
+        )
+        const existing = metaMap.get(`${sourceRow.id}:${locale}`)
+        if (existing?.is_manual || existing?.source_hash === sourceHash) {
+          continue
+        }
+
+        rows.push({
+          event_id: sourceRow.id,
+          locale,
+          title,
+          source_hash: sourceHash,
+          is_manual: false,
+        })
+      }
+    }
+
+    completed += await upsertDeterministicEventTranslations(rows)
+
+    if (page.rawCount < DISCOVERY_SCAN_PAGE_SIZE) {
+      break
+    }
+    offset += page.rawCount
+  }
+
+  return completed
 }
 
 async function enqueueEventDiscoveryJobs(

@@ -19,8 +19,11 @@ interface TranslationScriptRule {
 const DATED_UP_OR_DOWN_TITLE_PATTERN = /^(.+?) Up or Down on ([A-Za-z]+) (\d{1,2})(?:, (\d{4}))?\?$/
 const TIMED_UP_OR_DOWN_TITLE_PATTERN =
   /^(.+?) Up or Down - ([A-Z]+) (\d{1,2})(?:, (\d{4}))?, (\d{1,2})(?::(\d{2}))?\s*(AM|PM) ET$/i
+const RANGED_UP_OR_DOWN_TITLE_PATTERN =
+  /^(.+?) Up or Down - ([A-Z]+) (\d{1,2})(?:, (\d{4}))?, (\d{1,2})(?::(\d{2}))?\s*(AM|PM)-(\d{1,2})(?::(\d{2}))?\s*(AM|PM) ET$/i
 const WEEKLY_UP_OR_DOWN_TITLE_PATTERN = /^(.+?) Up or Down this week\?$/i
 const DETERMINISTIC_UP_OR_DOWN_TRANSLATION_VERSION = 'up-or-down-v2'
+const DETERMINISTIC_RANGED_UP_OR_DOWN_TRANSLATION_VERSION = 'up-or-down-range-v1'
 const DETERMINISTIC_WEEKLY_UP_OR_DOWN_TRANSLATION_VERSION = 'up-or-down-weekly-v1'
 const ENGLISH_MONTH_INDEX: Record<string, number> = {
   april: 3,
@@ -113,6 +116,18 @@ function parseEnglishDate(englishMonth: string, rawDay: string, year: string | u
   return parsedDate.getUTCMonth() === monthIndex && parsedDate.getUTCDate() === day ? parsedDate : null
 }
 
+function setEnglishTime(date: Date, rawHour: string, rawMinute: string | undefined, rawDayPeriod: string) {
+  const hour = Number(rawHour)
+  const minute = rawMinute ? Number(rawMinute) : 0
+  if (!Number.isInteger(hour) || hour < 1 || hour > 12 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return null
+  }
+
+  const hour24 = rawDayPeriod.toUpperCase() === 'AM' ? hour % 12 : (hour % 12) + 12
+  date.setUTCHours(hour24, minute)
+  return date
+}
+
 export function resolveDeterministicTranslation(input: {
   locale: NonDefaultLocale
   sourceLabel: 'event title' | 'tag name'
@@ -145,6 +160,33 @@ export function resolveDeterministicTranslation(input: {
     return formatDatedUpOrDownTitle(input.locale, subject.trim(), localizedDate)
   }
 
+  const rangedMatch = RANGED_UP_OR_DOWN_TITLE_PATTERN.exec(sourceText)
+  if (rangedMatch) {
+    const [, subject, englishMonth, rawDay, year, startHour, startMinute, startPeriod, endHour, endMinute, endPeriod] =
+      rangedMatch
+    if (!subject?.trim() || !englishMonth || !rawDay || !startHour || !startPeriod || !endHour || !endPeriod) {
+      return null
+    }
+
+    const parsedDate = parseEnglishDate(englishMonth, rawDay, year)
+    if (!parsedDate) {
+      return null
+    }
+
+    const startDate = setEnglishTime(new Date(parsedDate), startHour, startMinute, startPeriod)
+    const endDate = setEnglishTime(new Date(parsedDate), endHour, endMinute, endPeriod)
+    if (!startDate || !endDate) {
+      return null
+    }
+    if (endDate <= startDate) {
+      endDate.setUTCDate(endDate.getUTCDate() + 1)
+    }
+
+    const localizedDate = formatLocalizedDate(input.locale, startDate, Boolean(year))
+    const localizedTime = `${formatLocalizedTime(input.locale, startDate)}–${formatLocalizedTime(input.locale, endDate)}`
+    return formatTimedUpOrDownTitle(input.locale, subject.trim(), localizedDate, localizedTime)
+  }
+
   const timedMatch = TIMED_UP_OR_DOWN_TITLE_PATTERN.exec(sourceText)
   if (!timedMatch) {
     return null
@@ -156,22 +198,14 @@ export function resolveDeterministicTranslation(input: {
   }
 
   const parsedDate = parseEnglishDate(englishMonth, rawDay, year)
-  const hour = Number(rawHour)
-  const minute = rawMinute ? Number(rawMinute) : 0
-  if (
-    !parsedDate ||
-    !Number.isInteger(hour) ||
-    hour < 1 ||
-    hour > 12 ||
-    !Number.isInteger(minute) ||
-    minute < 0 ||
-    minute > 59
-  ) {
+  if (!parsedDate) {
     return null
   }
 
-  const hour24 = rawDayPeriod.toUpperCase() === 'AM' ? hour % 12 : (hour % 12) + 12
-  parsedDate.setUTCHours(hour24, minute)
+  const timedDate = setEnglishTime(parsedDate, rawHour, rawMinute, rawDayPeriod)
+  if (!timedDate) {
+    return null
+  }
   const localizedDate = formatLocalizedDate(input.locale, parsedDate, Boolean(year))
   const localizedTime = formatLocalizedTime(input.locale, parsedDate)
   return formatTimedUpOrDownTitle(input.locale, subject.trim(), localizedDate, localizedTime)
@@ -185,6 +219,9 @@ export function resolveDeterministicTranslationVersion(input: {
   const sourceText = input.sourceText.trim()
   if (input.sourceLabel === 'event title' && WEEKLY_UP_OR_DOWN_TITLE_PATTERN.test(sourceText)) {
     return resolveDeterministicTranslation(input) ? DETERMINISTIC_WEEKLY_UP_OR_DOWN_TRANSLATION_VERSION : null
+  }
+  if (input.sourceLabel === 'event title' && RANGED_UP_OR_DOWN_TITLE_PATTERN.test(sourceText)) {
+    return resolveDeterministicTranslation(input) ? DETERMINISTIC_RANGED_UP_OR_DOWN_TRANSLATION_VERSION : null
   }
 
   return resolveDeterministicTranslation(input) ? DETERMINISTIC_UP_OR_DOWN_TRANSLATION_VERSION : null

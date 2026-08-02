@@ -40,6 +40,7 @@ interface RequestCompletionOptions {
   maxTokens?: number
   model?: string
   apiKey?: string
+  timeoutMs?: number
   webSearch?: boolean
   webSearchContextSize?: 'low' | 'medium' | 'high'
 }
@@ -88,7 +89,7 @@ export async function requestOpenRouterCompletion(messages: OpenRouterMessage[],
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers,
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(options?.timeoutMs ?? 45_000),
     body: JSON.stringify(requestBody),
   })
 
