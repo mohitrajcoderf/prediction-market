@@ -200,7 +200,11 @@ export default function MarketDetailTabs({
   )
 
   return (
-    <Tabs value={selectedTab} onValueChange={(value) => select(value as MarketDetailTab)} className="pt-0">
+    <Tabs
+      value={selectedTab}
+      onValueChange={(value) => select(value as MarketDetailTab)}
+      className="pt-0 pr-2 pl-4 lg:px-0"
+    >
       <div className="px-0">
         <div className="flex items-center gap-2 border-b">
           <TabsList className="flex h-auto w-0 flex-1 justify-start gap-4 overflow-x-auto rounded-none bg-transparent p-0">
