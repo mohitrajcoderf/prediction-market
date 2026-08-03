@@ -25,7 +25,7 @@ const config: NextConfig = {
     },
     typedEnv: true,
     turbopackRustReactCompiler: true,
-    turbopackFileSystemCacheForBuild: true,
+    turbopackFileSystemCacheForBuild: false,
     useTypeScriptCli: true,
     inlineCss: true,
   },
