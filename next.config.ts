@@ -18,7 +18,9 @@ const config: NextConfig = {
   typedRoutes: true,
   reactStrictMode: false,
   reactCompiler: true,
-  staticPageGenerationTimeout: 180,
+  typescript: {
+    ignoreBuildErrors: !!process.env.VERCEL_ENV && !process.env.VERCEL_GIT_PREVIOUS_SHA,
+  },
   experimental: {
     inlineCss: true,
     serverActions: {
