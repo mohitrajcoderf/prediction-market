@@ -18,6 +18,7 @@ const config: NextConfig = {
   typedRoutes: true,
   reactStrictMode: false,
   reactCompiler: true,
+  compress: false,
   typescript: {
     ignoreBuildErrors: !!process.env.VERCEL_ENV && !process.env.VERCEL_GIT_PREVIOUS_SHA,
   },
