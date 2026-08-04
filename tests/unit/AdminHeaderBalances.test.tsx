@@ -105,7 +105,7 @@ describe('adminHeaderBalances', () => {
     expect(screen.getByText('Admin POL')).toBeInTheDocument()
     expect(screen.getByText('Admin USDC')).toBeInTheDocument()
     expect(screen.getByText('Fees')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /fees/i })).toHaveAttribute('href', '/admin/affiliate')
+    expect(screen.getByRole('button', { name: /fees/i })).toHaveAttribute('href', '/admin/affiliate')
     expect(screen.getAllByText('1.23')).toHaveLength(2)
     expect(screen.getByText('42.50')).toBeInTheDocument()
 
@@ -155,7 +155,7 @@ describe('adminHeaderBalances', () => {
 
     render(<AdminHeaderBalances feeRecipientWallet="0x00000000000000000000000000000000000000cc" />)
 
-    expect(screen.getByRole('link', { name: /fees/i })).toHaveTextContent('—')
+    expect(screen.getByRole('button', { name: /fees/i })).toHaveTextContent('—')
     expect(claimableQuery).toBeDefined()
     if (!claimableQuery) {
       throw new Error('Expected the claimable fee query to be configured.')
@@ -175,7 +175,7 @@ describe('adminHeaderBalances', () => {
 
     render(<AdminHeaderBalances feeRecipientWallet="0x00000000000000000000000000000000000000cc" />)
 
-    expect(screen.getByRole('link', { name: /fees/i })).toHaveTextContent('9.87')
+    expect(screen.getByRole('button', { name: /fees/i })).toHaveTextContent('9.87')
     expect(screen.getByText('Last confirmed value; refresh failed.')).toBeInTheDocument()
   })
 })

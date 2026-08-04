@@ -7,7 +7,7 @@ import { useExtracted } from 'next-intl'
 import { useCallback, useMemo } from 'react'
 import { createPublicClient, formatUnits, getAddress, isAddress } from 'viem'
 
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { useBalance } from '@/hooks/useBalance'
@@ -167,26 +167,33 @@ export default function AdminHeaderBalances({ feeRecipientWallet }: { feeRecipie
         </div>
       </Button>
 
-      <Link href="/admin/affiliate" className={buttonVariants({ variant: 'ghost', size: 'headerBalance' })}>
-        <div className="translate-y-px text-xs/tight font-medium text-muted-foreground">{t('Fees')}</div>
-        <div className="-translate-y-px text-base/tight font-semibold text-foreground">
-          {isLoadingClaimableFees ? (
-            <Skeleton className="h-5 w-12" />
-          ) : claimableFees == null ? (
-            '—'
-          ) : (
-            <span className="inline-flex items-center gap-1">
-              {formatAdminBalance(claimableFees)}
-              {isClaimableFeesStale && (
-                <span className="inline-flex text-amber-500 dark:text-amber-400" title={claimableFeesStaleLabel}>
-                  <TriangleAlertIcon className="size-3.5" aria-hidden />
-                  <span className="sr-only">{claimableFeesStaleLabel}</span>
+      <Button
+        variant="ghost"
+        size="headerBalance"
+        nativeButton={false}
+        render={
+          <Link href="/admin/affiliate">
+            <div className="translate-y-px text-xs/tight font-medium text-muted-foreground">{t('Fees')}</div>
+            <div className="-translate-y-px text-base/tight font-semibold text-foreground">
+              {isLoadingClaimableFees ? (
+                <Skeleton className="h-5 w-12" />
+              ) : claimableFees == null ? (
+                '—'
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  {formatAdminBalance(claimableFees)}
+                  {isClaimableFeesStale && (
+                    <span className="inline-flex text-amber-500 dark:text-amber-400" title={claimableFeesStaleLabel}>
+                      <TriangleAlertIcon className="size-3.5" aria-hidden />
+                      <span className="sr-only">{claimableFeesStaleLabel}</span>
+                    </span>
+                  )}
                 </span>
               )}
-            </span>
-          )}
-        </div>
-      </Link>
+            </div>
+          </Link>
+        }
+      />
     </div>
   )
 }
