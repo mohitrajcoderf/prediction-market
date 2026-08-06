@@ -918,7 +918,7 @@ function EventOrderPanelPolymarketArbitrage({
   ) : null
 
   return (
-    <div className="grid gap-4">
+    <div className="mt-4 grid gap-4">
       {multiWalletEnabled && appKitState.multiWallet && (
         <MultiWalletConnectionBridge onSwitchConnectionChange={handleSwitchConnectionChange} />
       )}
