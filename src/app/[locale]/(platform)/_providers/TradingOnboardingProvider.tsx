@@ -65,7 +65,11 @@ import {
 } from '@/lib/trading-flow-errors'
 import { hasUsableUserEmail } from '@/lib/user-email'
 import { createViemTransport, defaultViemNetwork, resolveViemRpcUrls } from '@/lib/viem-network'
-import { isRecoverableWalletConnectorError, isUserRejectedRequestError } from '@/lib/wallet'
+import {
+  isRecoverableWalletConnectorError,
+  isUserRejectedRequestError,
+  WalletConnectorNotConnectedError,
+} from '@/lib/wallet'
 import { signAndSubmitDepositWalletCalls } from '@/lib/wallet/client'
 import {
   buildAutoRedeemAllowanceCalls,
@@ -484,6 +488,11 @@ function TradingOnboardingProviderContent({ children, user }: TradingOnboardingP
     ) => {
       if (isUserRejectedRequestError(error)) {
         setError(signatureRejectedMessage)
+        return
+      }
+
+      if (error instanceof WalletConnectorNotConnectedError) {
+        setError(walletConnectorReconnectMessage)
         return
       }
 
