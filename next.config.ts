@@ -20,7 +20,7 @@ const config: NextConfig = {
   reactCompiler: true,
   compress: false,
   typescript: {
-    ignoreBuildErrors: !!process.env.VERCEL_ENV && !process.env.VERCEL_GIT_PREVIOUS_SHA,
+    ignoreBuildErrors: !!process.env.VERCEL_ENV,
   },
   experimental: {
     inlineCss: true,
