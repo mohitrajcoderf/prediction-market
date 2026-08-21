@@ -56,6 +56,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { usePublicRuntimeConfig } from '@/hooks/usePublicRuntimeConfig'
 import { useSignaturePromptRunner } from '@/hooks/useSignaturePromptRunner'
+import { Link } from '@/i18n/navigation'
 import { COLLATERAL_TOKEN_ADDRESS, MARKET_MAKER_ESCROW_ADDRESS, POLY_SYNCER_CREATOR_ADDRESS } from '@/lib/contracts'
 import {
   linkSponsorEmail,
@@ -65,6 +66,7 @@ import {
   updateNotificationSettings,
 } from '@/lib/kuest-notifications'
 import { MARKET_MAKER_ESCROW_ABI } from '@/lib/market-maker-escrow'
+import { hasUsableUserEmail } from '@/lib/user-email'
 import { cn } from '@/lib/utils'
 import { resolveViemNetworkByChainId } from '@/lib/viem-network'
 import { isRecoverableWalletConnectorError, isUserRejectedRequestError } from '@/lib/wallet'
@@ -76,6 +78,7 @@ import {
   resolveWalletChainId,
   type RpcWalletProvider,
 } from '@/lib/wallet/eoa-transaction'
+import { useUser } from '@/stores/useUser'
 
 interface MarketMakingCopy {
   eyebrow: string
@@ -159,11 +162,9 @@ interface MarketMakingCopy {
   verificationUnavailable: string
   saveChanges: string
   marketMaking: string
-  operatorEmailDescription: string
-  operatorEmailLinked: string
-  linkOperatorEmail: string
   operatorVerificationPending: string
-  verifyOperatorEmail: string
+  accountEmailRequired: string
+  accountSettings: string
 }
 
 interface MarketMakingDiscoveryProps {
@@ -1896,6 +1897,7 @@ function CampaignDialog({
 }
 
 function NotificationSettingsButton({ copy, locale }: { copy: MarketMakingCopy; locale: string }) {
+  const user = useUser()
   const { address, isConnected } = useAppKitAccount()
   const { walletProvider } = useAppKitProvider<RpcWalletProvider>('eip155')
   const { data: walletClient } = useWalletClient()
@@ -1904,31 +1906,20 @@ function NotificationSettingsButton({ copy, locale }: { copy: MarketMakingCopy; 
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [emailVerified, setEmailVerified] = useState(false)
   const [maskedEmail, setMaskedEmail] = useState<string | null>(null)
   const [campaignStatus, setCampaignStatus] = useState(true)
   const [newOpportunities, setNewOpportunities] = useState(true)
   const [nonEmailPreferences, setNonEmailPreferences] = useState<NotificationPreference[]>([])
   const [settingsWallet, setSettingsWallet] = useState<string | null>(null)
-  const [sourceDomain, setSourceDomain] = useState<string | null>(null)
-  const [operatorEmail, setOperatorEmail] = useState('')
-  const [operatorLinking, setOperatorLinking] = useState(false)
-  const [operatorVerificationPending, setOperatorVerificationPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const settingsRequestId = useRef(0)
-  const operatorLinkInFlight = useRef(false)
   const activeAddress = useRef(address)
 
   useEffect(() => {
     activeAddress.current = address
     settingsRequestId.current += 1
-    operatorLinkInFlight.current = false
     setLoading(false)
     setSettingsWallet(null)
-    setSourceDomain(null)
-    setOperatorEmail('')
-    setOperatorLinking(false)
-    setOperatorVerificationPending(false)
     return () => {
       settingsRequestId.current += 1
     }
@@ -1951,24 +1942,25 @@ function NotificationSettingsButton({ copy, locale }: { copy: MarketMakingCopy; 
       transport: custom(walletProvider),
     })
   }, [address, chainId, walletClient, walletProvider])
-  const hasCurrentSettings = Boolean(address) && emailVerified && settingsWallet === address?.toLowerCase()
   const hasLoadedSettings = Boolean(address) && settingsWallet === address?.toLowerCase()
+  const operatorDomain = typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase()
+  const accountEmail = user?.email?.trim() ?? ''
+  const hasAccountEmail = hasUsableUserEmail(accountEmail)
+  const hasCurrentSettings = hasLoadedSettings && hasAccountEmail
 
   async function loadSettings() {
-    if (operatorLinkInFlight.current) {
-      setOpen(true)
-      return
-    }
     const requestId = ++settingsRequestId.current
     const requestWallet = address?.toLowerCase() ?? null
     setOpen(true)
     setError(null)
-    setEmailVerified(false)
     setMaskedEmail(null)
-    setSourceDomain(null)
     setNonEmailPreferences([])
     setSettingsWallet(null)
     setLoading(false)
+    if (!hasAccountEmail) {
+      setSettingsWallet(requestWallet)
+      return
+    }
     if (!isConnected || !address || !signingWalletClient) {
       setError(copy.walletNotReady)
       return
@@ -1988,9 +1980,7 @@ function NotificationSettingsButton({ copy, locale }: { copy: MarketMakingCopy; 
       if (settingsRequestId.current !== requestId || activeAddress.current?.toLowerCase() !== requestWallet) {
         return
       }
-      setEmailVerified(settings.emailVerified)
       setMaskedEmail(settings.maskedEmail ?? null)
-      setSourceDomain(settings.sourceDomain ?? null)
       const campaignPreference = settings.preferences?.find(
         (preference) => preference.channel === 'email' && preference.topic === 'campaign_status',
       )
@@ -2020,6 +2010,22 @@ function NotificationSettingsButton({ copy, locale }: { copy: MarketMakingCopy; 
     setSaving(true)
     setError(null)
     try {
+      const linkResult = await runWithSignaturePrompt(
+        () =>
+          linkSponsorEmail({
+            notificationsUrl,
+            wallet: address as `0x${string}`,
+            walletClient: signingWalletClient,
+            email: accountEmail,
+            locale,
+            siteDomain: operatorDomain,
+          }),
+        { title: copy.notificationSettings, description: copy.transactionPrompt },
+      )
+      if (!linkResult.alreadyVerified) {
+        setError(copy.operatorVerificationPending)
+        return
+      }
       await runWithSignaturePrompt(
         () =>
           updateNotificationSettings({
@@ -2041,60 +2047,6 @@ function NotificationSettingsButton({ copy, locale }: { copy: MarketMakingCopy; 
     } finally {
       setSaving(false)
     }
-  }
-
-  const operatorDomain = typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase()
-  const needsOperatorEmail = hasLoadedSettings && Boolean(operatorDomain) && sourceDomain !== operatorDomain
-
-  async function linkOperatorEmail() {
-    if (!address || !signingWalletClient || !operatorDomain || !operatorEmail.trim()) {
-      setError(copy.walletNotReady)
-      return
-    }
-    const requestId = ++settingsRequestId.current
-    const requestWallet = address.toLowerCase()
-    operatorLinkInFlight.current = true
-    setOperatorLinking(true)
-    setError(null)
-    try {
-      const result = await runWithSignaturePrompt(
-        () =>
-          linkSponsorEmail({
-            notificationsUrl,
-            wallet: address as `0x${string}`,
-            walletClient: signingWalletClient,
-            email: operatorEmail,
-            locale,
-            siteDomain: operatorDomain,
-          }),
-        { title: copy.linkOperatorEmail, description: copy.transactionPrompt },
-      )
-      if (settingsRequestId.current !== requestId || activeAddress.current?.toLowerCase() !== requestWallet) {
-        return
-      }
-      if (result.alreadyVerified) {
-        setSourceDomain(operatorDomain)
-        setOperatorEmail('')
-        setOperatorVerificationPending(false)
-        toast.success(copy.operatorEmailLinked)
-      } else if (result.verificationPending) {
-        setOperatorVerificationPending(true)
-      }
-    } catch {
-      if (settingsRequestId.current === requestId && activeAddress.current?.toLowerCase() === requestWallet) {
-        setError(copy.verificationUnavailable)
-      }
-    } finally {
-      if (settingsRequestId.current === requestId && activeAddress.current?.toLowerCase() === requestWallet) {
-        operatorLinkInFlight.current = false
-        setOperatorLinking(false)
-      }
-    }
-  }
-
-  async function confirmOperatorEmail() {
-    setOperatorVerificationPending(false)
-    await loadSettings()
   }
 
   return (
@@ -2138,45 +2090,15 @@ function NotificationSettingsButton({ copy, locale }: { copy: MarketMakingCopy; 
                 />
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{copy.emailDescription}</p>
-          )}
-          {needsOperatorEmail && (
-            <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
-              <p className="text-sm text-muted-foreground">{copy.operatorEmailDescription}</p>
-              {operatorVerificationPending ? (
-                <>
-                  <p className="text-sm text-muted-foreground">{copy.operatorVerificationPending}</p>
-                  <Button
-                    type="button"
-                    disabled={loading || operatorLinking}
-                    onClick={() => void confirmOperatorEmail()}
-                  >
-                    {loading ? <LoaderCircleIcon className="size-4 animate-spin" /> : null}
-                    {copy.verifyOperatorEmail}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Input
-                    type="email"
-                    autoComplete="email"
-                    value={operatorEmail}
-                    placeholder={copy.emailAddress}
-                    onChange={(event) => setOperatorEmail(event.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    disabled={!operatorEmail.trim() || operatorLinking || loading}
-                    onClick={() => void linkOperatorEmail()}
-                  >
-                    {operatorLinking ? <LoaderCircleIcon className="size-4 animate-spin" /> : null}
-                    {copy.linkOperatorEmail}
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
+          ) : null}
+          {!hasAccountEmail ? (
+            <p className="text-sm text-destructive">
+              {copy.accountEmailRequired}{' '}
+              <Link href="/settings" className="underline underline-offset-4">
+                {copy.accountSettings}
+              </Link>
+            </p>
+          ) : null}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button
