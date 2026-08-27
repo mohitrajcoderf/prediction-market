@@ -1976,7 +1976,6 @@ function useHomeFeaturedRolloverItem(item: HomeFeaturedEventCard) {
     return {
       ...item,
       ...activeRolloverEvent,
-      contextItems: [],
       nextSeriesEvent: nextRolloverEvent,
     }
   }, [activeRolloverEvent, item, nextRolloverEvent])
