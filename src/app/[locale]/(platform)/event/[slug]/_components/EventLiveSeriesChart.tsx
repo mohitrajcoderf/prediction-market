@@ -53,7 +53,12 @@ import {
   SERIES_KEY,
   toCountdownLeftLabel,
 } from '../_utils/eventLiveSeriesChartUtils'
-import { buildContinuousLiveAxis, interpolateLiveChartAxis, type LiveChartAxis } from '../_utils/liveSeriesChartAxis'
+import {
+  buildContinuousLiveAxis,
+  buildLiveChartRecoveryValues,
+  interpolateLiveChartAxis,
+  type LiveChartAxis,
+} from '../_utils/liveSeriesChartAxis'
 import {
   resolveLiveSeriesAxisPriceDigits,
   resolveLiveSeriesDeltaDisplayDigits,
@@ -352,7 +357,7 @@ function EventLiveSeriesChartContent({
     [config.active_window_minutes, realtimeTopic],
   )
 
-  const { data, status } = useLiveSeriesWebSocket({
+  const { data, idleRecovery, idleRecoveryVersion, status } = useLiveSeriesWebSocket({
     topic: realtimeTopic,
     eventType: config.event_type,
     eventEndTimestamp: explicitEndTimestamp,
@@ -704,6 +709,12 @@ function EventLiveSeriesChartContent({
       values.push(axisCurrentPrice)
     }
 
+    const recoveryValues = buildLiveChartRecoveryValues(axisCurrentPrice, idleRecovery?.priceSpan ?? null)
+    if (recoveryValues.length > 0) {
+      // Keep the resumed price centered while the scale absorbs a large idle-time move.
+      values.push(...recoveryValues)
+    }
+
     return buildContinuousLiveAxis(
       values,
       axisCurrentPrice,
@@ -711,13 +722,16 @@ function EventLiveSeriesChartContent({
       featuredChartLayout ? 4 : LIVE_AXIS_TARGET_TICK_INTERVALS,
       featuredChartLayout ? FEATURED_LIVE_AXIS_MINIMUM_PRICE_SPAN_RATIO : LIVE_AXIS_MINIMUM_PRICE_SPAN_RATIO,
     )
-  }, [axisCurrentPrice, axisPriceDisplayDigits, dataSource, featuredChartLayout, renderData])
+  }, [axisCurrentPrice, axisPriceDisplayDigits, dataSource, featuredChartLayout, idleRecovery, renderData])
   const axisInitializationPhase =
     data.length > 0 ? 'realtime-ready' : dataSource.length > 0 ? 'reference-ready' : 'empty'
   const chartScopeKey = preserveSeriesContinuity
     ? `${config.series_slug}:${config.topic}:${config.event_type}:${subscriptionSymbol}`
     : `${event.id}:${realtimeTopic}:${subscriptionSymbol}`
-  const axisValues = useStableLiveChartAxis(candidateAxisValues, `${chartScopeKey}:${axisInitializationPhase}`)
+  const axisValues = useStableLiveChartAxis(
+    candidateAxisValues,
+    `${chartScopeKey}:${axisInitializationPhase}:${idleRecoveryVersion}`,
+  )
 
   const currentLineTop = (() => {
     if (currentPrice == null) {
