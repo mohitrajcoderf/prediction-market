@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath, updateTag } from 'next/cache'
+import { headers } from 'next/headers'
 import { randomBytes } from 'node:crypto'
 
 import {
@@ -56,8 +57,8 @@ function getString(formData: FormData, key: string) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function getCanonicalPaymentsDomain() {
-  const domain = getPaymentsCanonicalDomain()
+function getCanonicalPaymentsDomain(requestHeaders: Pick<Headers, 'get'>) {
+  const domain = getPaymentsCanonicalDomain(requestHeaders)
   if (!domain) {
     throw new PaymentsOperatorProvisioningError('payments_site_url_invalid')
   }
@@ -146,6 +147,7 @@ export async function updateIntegrationsSettingsAction(
     const reissuePaymentsOperatorKey = formData.get('payments_reissue_operator_key') === 'true'
     const customJavascriptCodesJson = getString(formData, 'custom_javascript_codes_json')
     const kuestSupportPositionRaw = getString(formData, 'kuest_support_position')
+    const paymentsEnabledChanged = formData.get('payments_enabled_changed') === 'true'
 
     if (
       openRouterApiKey.length > 256 ||
@@ -214,9 +216,10 @@ export async function updateIntegrationsSettingsAction(
       allSettings?.[PAYMENTS_SETTINGS_GROUP]?.[PAYMENTS_OPERATOR_DOMAIN_KEY]?.value?.trim().toLowerCase() ?? ''
     const existingPaymentsEnabled =
       allSettings?.[PAYMENTS_SETTINGS_GROUP]?.[PAYMENTS_ENABLED_SETTING_KEY]?.value === 'true'
-    const paymentsEnabled = formData.has('payments_enabled')
-      ? formData.get('payments_enabled') === 'true'
-      : existingPaymentsEnabled
+    const paymentsEnabled =
+      paymentsEnabledChanged && formData.has('payments_enabled')
+        ? formData.get('payments_enabled') === 'true'
+        : existingPaymentsEnabled
     const existingPaymentsKey = decryptSecret(existingPaymentsOperatorKey)
     const hasExistingPaymentsKey = /^[A-Za-z0-9_-]{40,64}$/u.test(existingPaymentsKey)
     const currentKuestSupportSettings = getKuestSupportSettings(allSettings)
@@ -252,13 +255,15 @@ export async function updateIntegrationsSettingsAction(
     let provisionedPaymentsOperatorKey: string | null = null
     let paymentsOperatorDomain = existingPaymentsOperatorDomain
     let challengeSettingKey: string | null = null
-    const canonicalPaymentsDomain = paymentsEnabled || reissuePaymentsOperatorKey ? getCanonicalPaymentsDomain() : null
+    const paymentsActivationRequested = paymentsEnabledChanged && paymentsEnabled
+    const canonicalPaymentsDomain =
+      paymentsActivationRequested || reissuePaymentsOperatorKey ? getCanonicalPaymentsDomain(await headers()) : null
     const paymentsDomainChanged = Boolean(
       canonicalPaymentsDomain && canonicalPaymentsDomain !== existingPaymentsOperatorDomain,
     )
 
     if (
-      (reissuePaymentsOperatorKey || paymentsEnabled) &&
+      (reissuePaymentsOperatorKey || paymentsActivationRequested) &&
       paymentsDomainChanged &&
       existingPaymentsOperatorDomain &&
       !hasExistingPaymentsKey
@@ -266,7 +271,10 @@ export async function updateIntegrationsSettingsAction(
       throw new PaymentsOperatorProvisioningError('payments_operator_domain_change_key_missing')
     }
 
-    if (reissuePaymentsOperatorKey || (paymentsEnabled && (!hasExistingPaymentsKey || paymentsDomainChanged))) {
+    if (
+      reissuePaymentsOperatorKey ||
+      (paymentsActivationRequested && (!hasExistingPaymentsKey || paymentsDomainChanged))
+    ) {
       const domain = canonicalPaymentsDomain!
       const registrationToken = randomBytes(32).toString('base64url')
       const domainChallenge = await requestPaymentsOperatorChallenge(domain, registrationToken)
